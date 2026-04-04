@@ -23,8 +23,9 @@
 ```text
 ChurnRadar/
 ├── api/          # FastAPI 서버 및 API 스펙 정의 
-├── data/         # CRM 데이터셋 (원본 및 전처리 데이터) 
-├── models/       # 학습 완료된 모델 파일 (.joblib) 
+├── data/         # CRM 데이터셋 (원본 및 전처리 데이터, Git 제외) 
+├── models/       # 학습 완료된 모델 파일 (.joblib, Git 제외) 
+├── scripts/      # 예: `train_bulgarian_churn.py` — CSV → model.joblib 학습 
 ├── n8n/          # n8n 워크플로우 설정 파일 
 └── notebooks/    # EDA 및 AI 모델 실험용 Jupyter Notebook
 ```

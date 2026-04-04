@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
-import numpy as np
+import pandas as pd
 
 _MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "model.joblib"
 _model: Optional[Any] = None
@@ -27,15 +27,18 @@ def _get_model() -> Optional[Any]:
 
 def predict_churn(tenure: int, monthly_charges: float) -> Tuple[float, bool]:
     """
-    tenure, monthly_charges 두 특성으로 이탈 확률과 이진 판정을 반환합니다.
-    실제 학습 파이프라인과 특성 개수·순서가 맞아야 합니다.
+    학습 시 사용한 순서와 동일: (Total_SUBs, ARPU) ↔ API (tenure, monthly_charges).
+    `models/model.joblib`가 없으면 더미 점수를 반환합니다.
     """
     model = _get_model()
     if model is None:
         probability = 0.85
         return probability, probability >= 0.80
 
-    X = np.array([[tenure, monthly_charges]], dtype=float)
+    X = pd.DataFrame(
+        [[tenure, monthly_charges]],
+        columns=["Total_SUBs", "ARPU"],
+    )
     if hasattr(model, "predict_proba"):
         proba = model.predict_proba(X)[0]
         probability = float(proba[1] if proba.shape[-1] > 1 else proba[0])
