@@ -1,0 +1,17 @@
+{
+  "python.terminal.activateEnvironment": true,
+  "jupyter.defaultKernel": "Python 3",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "editor.formatOnSave": false,
+  "[windows]": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe"
+  },
+  "[osx]": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python"
+  },
+  "[linux]": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python"
+  }
+}

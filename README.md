@@ -30,11 +30,15 @@ ChurnRadar/
 ```
 
 ## 🚀 시작하기 (팀원 공통)
-팀원들은 리포지토리를 클론한 후 아래 명령어를 통해 환경 설정을 완료해 주세요.
+**Cursor / VS Code 설치·가상환경·GitHub 브랜치 작업까지 한 번에 정리한 가이드:**  
+→ [docs/개발환경-설정.md](docs/개발환경-설정.md)
 
-1. **가상환경 활성화 및 패키지 설치:**
+요약 — 리포지토리 클론 후:
+
+1. **가상환경 생성·활성화 및 패키지 설치 (최초 1회):**
    ```bash
-   source venv/bin/activate
+   python3 -m venv venv
+   source venv/bin/activate   # Windows: venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
