@@ -25,6 +25,8 @@ def _get_model() -> Optional[Any]:
     return _model
 
 
+CHURN_THRESHOLD = 0.80  # 이탈로 판별할 확률 임계값
+
 def predict_churn(tenure: int, monthly_charges: float) -> Tuple[float, bool]:
     """
     학습 시 사용한 순서와 동일: (Total_SUBs, ARPU) ↔ API (tenure, monthly_charges).
@@ -33,7 +35,7 @@ def predict_churn(tenure: int, monthly_charges: float) -> Tuple[float, bool]:
     model = _get_model()
     if model is None:
         probability = 0.85
-        return probability, probability >= 0.80
+        return probability, probability >= CHURN_THRESHOLD
 
     X = pd.DataFrame(
         [[tenure, monthly_charges]],
@@ -44,4 +46,4 @@ def predict_churn(tenure: int, monthly_charges: float) -> Tuple[float, bool]:
         probability = float(proba[1] if proba.shape[-1] > 1 else proba[0])
     else:
         probability = float(model.predict(X)[0])
-    return probability, probability >= 0.80
+    return probability, probability >= CHURN_THRESHOLD
