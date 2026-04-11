@@ -6,10 +6,15 @@ venv/
 .env
 
 # Mac OS 관련
+**/.DS_Store
 .DS_Store
 
 # 데이터 및 모델 파일
-data/
+data/*
+!data/raw/
+!data/processed/
+!data/interim/
+!data/**/.gitkeep
 models/*.joblib
 !models/.gitkeep
 
