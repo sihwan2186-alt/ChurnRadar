@@ -37,6 +37,7 @@ MODEL_OUT = REPO_ROOT / "models" / "model.joblib"
 NUMERIC_FEATURES = [
     "Total_SUBs", "AvgMobileRevenue", "AvgFIXRevenue",
     "TotalRevenue", "ARPU", "Active_Ratio", "Not_Active_subscribers",
+    "Mobile_Revenue_Ratio", "Inactive_Ratio",
 ]
 CAT_FEATURES = ["CRM_PID_Value_Segment", "EffectiveSegment"]  # KA_name 제거 (ID성 노이즈)
 FEATURE_COLS = NUMERIC_FEATURES + CAT_FEATURES
@@ -62,6 +63,14 @@ def load_data(path: Path) -> tuple[pd.DataFrame, pd.Series]:
 
     # Not_Active_subscribers: 결측은 0으로 (비활성 구독자 없음으로 간주)
     df["Not_Active_subscribers"] = df["Not_Active_subscribers"].fillna(0.0)
+
+    # 파생변수: 모바일 매출 비중
+    df["Mobile_Revenue_Ratio"] = df["AvgMobileRevenue"] / df["TotalRevenue"].replace(0, np.nan)
+    df["Mobile_Revenue_Ratio"] = df["Mobile_Revenue_Ratio"].fillna(0.0).clip(0.0, 1.0)
+
+    # 파생변수: 비활성 구독자 비율
+    df["Inactive_Ratio"] = df["Not_Active_subscribers"] / df["Total_SUBs"].replace(0, np.nan)
+    df["Inactive_Ratio"] = df["Inactive_Ratio"].fillna(0.0).clip(0.0, 1.0)
 
     # 범주형 결측 → 'Unknown'
     for col in CAT_FEATURES:
