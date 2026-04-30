@@ -4,3 +4,9 @@ scikit-learn
 pandas
 imbalanced-learn
 jupyter
+xgboost
+lightgbm
+catboost
+shap
+joblib
+optuna
