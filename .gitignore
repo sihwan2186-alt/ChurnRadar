@@ -22,3 +22,6 @@ models/*.joblib
 .ipynb_checkpoints
 # Logs
 logs/*.log
+
+# CatBoost 학습 로그
+catboost_info/
