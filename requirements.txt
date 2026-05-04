@@ -10,3 +10,7 @@ catboost
 shap
 joblib
 optuna
+polars
+pyarrow
+tslearn
+torch
