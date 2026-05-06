@@ -1,8 +1,9 @@
 import logging
+from typing import Dict, Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.model_handler import predict_churn
+from api.model_handler import predict_churn, predict_xgb, predict_transformer
 from api.schemas import ChurnPrediction, CustomerData
 
 # 로깅 설정
@@ -14,27 +15,82 @@ app = FastAPI(title="ChurnRadar API", description="고객 이탈 예측 및 알�
 # CORS 미들웨어 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 실제 배포 시 특정 도메인으로 제한 권장
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/")
 def read_root():
     logger.info("Health check endpoint '/' accessed.")
     return {"message": "ChurnRadar API 서버 정상 작동 중!"}
 
-
 @app.post("/predict", response_model=ChurnPrediction)
 def predict_churn_endpoint(data: CustomerData):
     logger.info(f"Predict requested. Customer ID: {data.customer_id}")
-    probability, is_churn = predict_churn(data.tenure, data.monthly_charges)
-    logger.info(f"Predicted -> Probability: {probability:.4f}, Churn: {is_churn}")
-
+    data_dict = data.model_dump()
+    result = predict_churn(data_dict)
+    
     return ChurnPrediction(
         customer_id=data.customer_id,
-        churn_probability=probability,
-        churn_prediction=is_churn,
+        **result
     )
+
+@app.post("/predict/xgb", response_model=Dict[str, Any])
+def predict_xgb_endpoint(data: CustomerData):
+    logger.info(f"Predict XGB requested. Customer ID: {data.customer_id}")
+    data_dict = data.model_dump()
+    prob = predict_xgb(data_dict)
+    return {
+        "customer_id": data.customer_id,
+        "xgb_probability": prob,
+        "is_churn": prob >= 0.5
+    }
+
+@app.post("/predict/ts", response_model=Dict[str, Any])
+def predict_ts_endpoint(data: CustomerData):
+    logger.info(f"Predict TS requested. Customer ID: {data.customer_id}")
+    data_dict = data.model_dump()
+    prob = predict_transformer(data_dict)
+    return {
+        "customer_id": data.customer_id,
+        "ts_probability": prob,
+        "is_churn": prob >= 0.5
+    }
+
+@app.post("/whatif")
+def whatif_simulator(data: CustomerData, arpu_discount: float = 0.0, active_boost: int = 0):
+    logger.info(f"What-if requested. Customer ID: {data.customer_id}")
+    
+    # 1. Before 개입 확률
+    data_dict_before = data.model_dump()
+    result_before = predict_churn(data_dict_before)
+    prob_before = result_before["churn_probability"]
+    
+    # 2. After 개입 데이터 준비
+    data_dict_after = data.model_dump()
+    data_dict_after["arpu"] = max(0.0, data_dict_after["arpu"] - arpu_discount)
+    data_dict_after["total_revenue"] = max(0.0, data_dict_after["total_revenue"] - arpu_discount)
+    data_dict_after["active_subscribers"] += active_boost
+    
+    # 3. After 개입 확률
+    result_after = predict_churn(data_dict_after)
+    prob_after = result_after["churn_probability"]
+    
+    delta = prob_after - prob_before
+    success = delta < 0  # 확률이 감소해야 성공
+    
+    # 예상 절감액: 확률이 떨어져 이탈이 방어되었다면 그만큼 ARPU를 유지한 것으로 간주
+    saved_revenue = 0.0
+    if result_before["churn_prediction"] and not result_after["churn_prediction"]:
+        saved_revenue = data_dict_after["arpu"] 
+        
+    return {
+        "customer_id": data.customer_id,
+        "before_probability": prob_before,
+        "after_probability": prob_after,
+        "delta": delta,
+        "success": success,
+        "expected_saved_revenue": saved_revenue
+    }
