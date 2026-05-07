@@ -1,6 +1,11 @@
 import argparse
 import time
 from pathlib import Path
+import sys
+import os
+
+# 현재 스크립트 위치(scripts/)의 부모 폴더(프로젝트 루트)를 경로에 추가
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
 import torch.nn as nn
@@ -14,7 +19,7 @@ import numpy as np
 from src.data.ts_dataset import ChurnTimeSeriesDataset
 from src.models.ts_transformer import ChurnTransformer
 
-def train_engine(parquet_path: Path, model_out: Path, epochs: int = 5, batch_size: int = 64, lr: float = 1e-3):
+def train_engine(parquet_path: Path, model_out: Path, epochs: int = 5, batch_size: int = 64, lr: float = 1e-3, weight_scale: float = 0.5):
     print("=" * 60)
     print("🚀 ChurnRadar Pro - Transformer Engine Training (Attention)")
     print("=" * 60)
@@ -64,12 +69,12 @@ def train_engine(parquet_path: Path, model_out: Path, epochs: int = 5, batch_siz
     # 편향 완화: Random Oversampling 제거 후 보수적인 pos_weight 계산
     n_pos = y_train.sum()
     n_neg = len(y_train) - n_pos
-    pos_weight_val = n_neg / (n_pos + 1e-5)
-    print(f"\n[Weighted Loss] 소수 클래스 가중치(pos_weight) 적용: {pos_weight_val:.2f}")
+    pos_weight_val = (n_neg / (n_pos + 1e-5)) * weight_scale
+    print(f"\n[Weighted Loss] 소수 클래스 가중치(pos_weight) 적용 (Scale: {weight_scale}): {pos_weight_val:.2f}")
     
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight_val]).to(device))
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.5)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
     
     # 5. 훈련 루프
     print(f"\n🔥 학습 시작 (Total Epochs: {epochs}, Batch Size: {batch_size})")
@@ -130,8 +135,9 @@ if __name__ == "__main__":
     parser.add_argument("--input", type=Path, default=Path("data/processed/kkbox_real_gold_v1.parquet"))
     parser.add_argument("--output", type=Path, default=Path("models/churn_pro_engine.pth"))
     parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--weight_scale", type=float, default=0.5, help="소수 클래스 가중치 스케일링 계수")
     args = parser.parse_args()
     
     if not args.input.is_file():
         raise SystemExit(f"입력 파일 없음: {args.input}")
-    train_engine(args.input, args.output, epochs=args.epochs)
+    train_engine(args.input, args.output, epochs=args.epochs, weight_scale=args.weight_scale)
