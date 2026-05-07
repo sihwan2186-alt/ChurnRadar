@@ -14,6 +14,11 @@ from __future__ import annotations
 import argparse
 import time
 from pathlib import Path
+import sys
+import os
+
+# 현재 스크립트 위치(scripts/)의 부모 폴더(프로젝트 루트)를 경로에 추가
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import torch
@@ -27,7 +32,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from src.data.ts_dataset import ChurnTimeSeriesDataset
 from src.models.ts_smote import TSSMOTE
 from src.models.ts_transformer import ChurnTransformer
-
 
 def train_engine(
     parquet_path: Path,
@@ -108,7 +112,6 @@ def train_engine(
 
     # ── 5. 모델 / 손실함수 / 옵티마이저 ─────────────────────────────────
     model = ChurnTransformer(input_size=3, d_model=64, nhead=4, num_layers=2).to(device)
-
     n_pos = float(y_train.sum())
     n_neg = float(len(y_train)) - n_pos
     pos_weight_val = (n_neg / (n_pos + 1e-5)) * weight_scale
@@ -223,7 +226,6 @@ if __name__ == "__main__":
 
     if not args.input.is_file():
         raise SystemExit(f"입력 파일 없음: {args.input}")
-
     train_engine(
         parquet_path=args.input,
         model_out=args.output,
