@@ -16,7 +16,7 @@ class ChurnTimeSeriesDataset(Dataset):
         print(f"[Dataset] 로드 중: {parquet_path}")
         df = pl.read_parquet(parquet_path)
         
-        grouped = df.group_by("Entity_ID").agg([
+        grouped = df.sort("Event_Time").group_by("Entity_ID", maintain_order=True).agg([
             pl.col("Activity_Energy"),
             pl.col("Momentum"),
             pl.col("Acceleration")
