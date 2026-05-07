@@ -1,20 +1,24 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from typing import Optional, List
 
-# 1. 고객 데이터 스키마
-# 불가리아 B2B 텔레콤 원본 CSV와 맞춤: tenure=Total_SUBs, monthly_charges=ARPU
 class CustomerData(BaseModel):
     customer_id: str
-    tenure: int = Field(
-        ...,
-        description="원본 데이터 Total_SUBs(총 구독·회선 규모)와 동일 의미로 사용",
-    )
-    monthly_charges: float = Field(
-        ...,
-        description="원본 데이터 ARPU(가입자당 평균 매출)와 동일 의미로 사용",
-    )
+    total_subs: int
+    avg_mobile_revenue: float
+    avg_fix_revenue: float
+    total_revenue: float
+    arpu: float
+    active_subscribers: int
+    not_active_subscribers: float
+    crm_segment: str = "Unknown"
+    effective_segment: str = "Unknown"
+    history_arpu: Optional[List[float]] = None  # What-if 시뮬레이터용 30일 배열
 
-# 2. 이탈 예측 결과 스키마
 class ChurnPrediction(BaseModel):
     customer_id: str
-    churn_probability: float    # 이탈 확률 (0~1)
-    churn_prediction: bool     # 이탈 예측 결과 (True/False)
+    xgb_probability: float
+    ts_probability: float
+    churn_probability: float  # 앙상블 평균
+    churn_prediction: bool
+    risk_level: str  # HIGH / MEDIUM / LOW
+    expected_revenue_loss: float  # 이탈 시 ARPU 기준 손실액
