@@ -32,8 +32,10 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-DEFAULT_CSV = REPO_ROOT / "data" / "raw" / "baza_telecom_v2.csv"
-MODEL_OUT = REPO_ROOT / "models" / "model.joblib"
+from src.utils.helpers import model_path, raw_data_path, resolve_input_path
+
+DEFAULT_CSV = raw_data_path("baza_telecom_v2.csv")
+MODEL_OUT = model_path("model.joblib")
 
 NUMERIC_FEATURES = [
     "Total_SUBs", "AvgMobileRevenue", "AvgFIXRevenue",
@@ -120,6 +122,9 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=MODEL_OUT)
     parser.add_argument("--trials", type=int, default=50)
     args = parser.parse_args()
+    args.csv = resolve_input_path(args.csv, DEFAULT_CSV)
+    if not args.out.is_absolute():
+        args.out = REPO_ROOT / args.out
 
     X, y = load_data(args.csv)
     X_train, X_test, y_train, y_test = train_test_split(

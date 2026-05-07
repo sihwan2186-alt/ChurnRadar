@@ -1,12 +1,19 @@
 import polars as pl
 from pathlib import Path
+import sys
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+
+from src.utils.helpers import interim_data_path, processed_data_path, raw_data_path
 
 def create_real_gold_dataset():
     print("🚀 [Real Gold] 시계열 로그와 정답지(Label) 및 프로필 병합 시작")
     
     # 1. 기존에 만든 로그 파티션(Parquet) 로드
     # 저장 경로가 data/interim/kkbox_user_logs.parquet 였습니다.
-    logs_path = Path("data/interim/kkbox_user_logs.parquet")
+    logs_path = interim_data_path("kkbox_user_logs.parquet")
     if not logs_path.exists():
         raise FileNotFoundError(f"로그 파일이 없습니다. 먼저 mapper를 실행하세요: {logs_path}")
         
@@ -17,8 +24,8 @@ def create_real_gold_dataset():
     logs = logs.with_columns(pl.col("Entity_ID").cast(pl.Utf8))
     
     # 2. 정답지 및 멤버 데이터 로드
-    label_path = Path("data/raw/train_v2.csv")
-    members_path = Path("data/raw/members_v3.csv")
+    label_path = raw_data_path("train_v2.csv")
+    members_path = raw_data_path("members_v3.csv")
     
     print(f"  - 정답지 로드: {label_path}")
     # msno 컬럼을 일관성을 위해 Entity_ID로 이름 변경 후 String 캐스팅
@@ -36,7 +43,7 @@ def create_real_gold_dataset():
     df = df.join(members, on="Entity_ID", how="left")
     
     # 5. 최종 '진짜' 데이터셋 저장
-    out_path = Path("data/processed/kkbox_real_gold_v1.parquet")
+    out_path = processed_data_path("kkbox_real_gold_v1.parquet")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     
     print("  - 최종 병합 결과 Parquet 저장 중...")

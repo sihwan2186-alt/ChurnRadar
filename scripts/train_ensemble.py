@@ -30,9 +30,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from src.models import build_catboost, build_lgbm, build_lr, build_rf, build_voting_ensemble, build_xgb
+from src.utils.helpers import model_path, raw_data_path, resolve_input_path
 
-DEFAULT_CSV = REPO_ROOT / "data" / "raw" / "baza_telecom_v2.csv"
-MODEL_OUT = REPO_ROOT / "models" / "model.joblib"
+DEFAULT_CSV = raw_data_path("baza_telecom_v2.csv")
+MODEL_OUT = model_path("model.joblib")
 
 NUMERIC_FEATURES = [
     "Total_SUBs", "AvgMobileRevenue", "AvgFIXRevenue",
@@ -133,6 +134,9 @@ def main() -> None:
     parser.add_argument("--csv", type=Path, default=DEFAULT_CSV)
     parser.add_argument("--out", type=Path, default=MODEL_OUT)
     args = parser.parse_args()
+    args.csv = resolve_input_path(args.csv, DEFAULT_CSV)
+    if not args.out.is_absolute():
+        args.out = REPO_ROOT / args.out
 
     if not args.csv.is_file():
         raise SystemExit(f"CSV 없음: {args.csv}")

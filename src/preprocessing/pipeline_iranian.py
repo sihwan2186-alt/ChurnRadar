@@ -1,9 +1,15 @@
 import argparse
 from pathlib import Path
+import sys
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+
 from src.preprocessing.scaler import scale_features
+from src.utils.helpers import processed_data_path, raw_data_path, resolve_input_path
 
 def run_iranian_pipeline(input_csv: Path, output_csv: Path) -> None:
     print(f"[Iranian] 로드 중: {input_csv}")
@@ -42,10 +48,11 @@ def run_iranian_pipeline(input_csv: Path, output_csv: Path) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=Path("data/raw/iranian_churn.csv"))
-    parser.add_argument("--output", type=Path, default=Path("data/processed/iranian_churn_processed.csv"))
+    parser.add_argument("--input", type=Path, default=raw_data_path("iranian_churn.csv"))
+    parser.add_argument("--output", type=Path, default=processed_data_path("iranian_churn_processed.csv"))
     args = parser.parse_args()
-    
+
+    args.input = resolve_input_path(args.input, raw_data_path("iranian_churn.csv"))
     if not args.input.is_file():
         raise SystemExit(f"입력 파일이 없습니다: {args.input}")
         

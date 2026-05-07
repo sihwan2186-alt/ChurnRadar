@@ -22,14 +22,22 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.data.ts_dataset import ChurnTimeSeriesDataset
 from src.models.ts_transformer import ChurnTransformer
+from src.utils.helpers import (
+    first_existing_path,
+    model_path as model_file_path,
+    plot_path,
+    processed_data_path,
+    raw_data_path,
+    result_path,
+)
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLOTS_DIR = REPO_ROOT / "plots"
-RESULTS_DIR = REPO_ROOT / "results"
+PLOTS_DIR = plot_path("")
+RESULTS_DIR = result_path("")
 
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -38,7 +46,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 def load_xgboost_data() -> tuple[pd.DataFrame, pd.Series]:
     """XGBoost 평가용 정적 데이터를 로드합니다."""
     # tune_xgboost.py의 전처리 로직 재사용
-    path = REPO_ROOT / "data" / "raw" / "baza_telecom_v2.csv"
+    path = raw_data_path("baza_telecom_v2.csv")
     if not path.exists():
         return pd.DataFrame(), pd.Series()
         
@@ -106,7 +114,7 @@ def evaluate_xgboost() -> dict:
 
 def get_transformer_data() -> tuple:
     """Transformer 데이터 로드 (스케일링 및 분할 포함)"""
-    parquet_path = REPO_ROOT / "data" / "processed" / "kkbox_real_gold_v1.parquet"
+    parquet_path = processed_data_path("kkbox_real_gold_v1.parquet")
     if not parquet_path.exists():
         raise FileNotFoundError(f"데이터셋을 찾을 수 없습니다: {parquet_path}")
         
@@ -274,7 +282,10 @@ def main() -> None:
         
     # 3. Transformer 모델 로드
     model = ChurnTransformer(input_size=3, d_model=64, nhead=4, num_layers=2).to(device)
-    model_path = REPO_ROOT / "models" / "churn_pro_engine.pth"
+    model_path = first_existing_path(
+        model_file_path("transformer_churn_v1.pth"),
+        model_file_path("churn_pro_engine.pth"),
+    ) or model_file_path("transformer_churn_v1.pth")
     tf_metrics = {"f1": 0.0, "recall": 0.0, "precision": 0.0, "auc": 0.0}
     
     if model_path.exists():

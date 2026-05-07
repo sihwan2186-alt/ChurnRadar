@@ -1,10 +1,16 @@
 import argparse
 from pathlib import Path
+import sys
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+
 from src.preprocessing.encoder import encode_data
 from src.preprocessing.scaler import scale_features
+from src.utils.helpers import processed_data_path, raw_data_path, resolve_input_path
 
 def run_cell2cell_pipeline(train_csv: Path, holdout_csv: Path, out_train_csv: Path, out_holdout_csv: Path) -> None:
     print(f"[Cell2Cell] 로드 중: {train_csv.name}, {holdout_csv.name}")
@@ -70,12 +76,14 @@ def run_cell2cell_pipeline(train_csv: Path, holdout_csv: Path, out_train_csv: Pa
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train", type=Path, default=Path("data/raw/cell2cell_train.csv"))
-    parser.add_argument("--holdout", type=Path, default=Path("data/raw/cell2cell_holdout.csv"))
-    parser.add_argument("--out_train", type=Path, default=Path("data/processed/cell2cell_train_processed.csv"))
-    parser.add_argument("--out_holdout", type=Path, default=Path("data/processed/cell2cell_holdout_processed.csv"))
+    parser.add_argument("--train", type=Path, default=raw_data_path("cell2cell_train.csv"))
+    parser.add_argument("--holdout", type=Path, default=raw_data_path("cell2cell_holdout.csv"))
+    parser.add_argument("--out_train", type=Path, default=processed_data_path("cell2cell_train_processed.csv"))
+    parser.add_argument("--out_holdout", type=Path, default=processed_data_path("cell2cell_holdout_processed.csv"))
     args = parser.parse_args()
-    
+
+    args.train = resolve_input_path(args.train, raw_data_path("cell2cell_train.csv"))
+    args.holdout = resolve_input_path(args.holdout, raw_data_path("cell2cell_holdout.csv"))
     if not args.train.is_file():
         raise SystemExit(f"입력 파일이 없습니다: {args.train}")
         

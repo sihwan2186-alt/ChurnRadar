@@ -23,6 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from src.explain import plot_bar, plot_summary
+from src.utils.helpers import model_path, plot_path, raw_data_path, resolve_input_path
 
 NUMERIC_FEATURES = [
     "Total_SUBs", "AvgMobileRevenue", "AvgFIXRevenue",
@@ -52,15 +53,15 @@ def load_sample(path: Path, n: int = 500) -> pd.DataFrame:
 
 
 def main() -> None:
-    model_path = REPO_ROOT / "models" / "model.joblib"
-    if not model_path.is_file():
-        raise SystemExit(f"모델 없음: {model_path}\n먼저 python scripts/train_ensemble.py 실행하세요.")
+    model_file = model_path("model.joblib")
+    if not model_file.is_file():
+        raise SystemExit(f"모델 없음: {model_file}\n먼저 python scripts/train_ensemble.py 실행하세요.")
 
-    model = joblib.load(model_path)
-    X_sample = load_sample(REPO_ROOT / "data" / "raw" / "baza_telecom_v2.csv")
+    model = joblib.load(model_file)
+    X_sample = load_sample(resolve_input_path(raw_data_path("baza_telecom_v2.csv")))
     print(f"SHAP 분석 샘플: {len(X_sample)}행")
 
-    plots_dir = REPO_ROOT / "plots"
+    plots_dir = plot_path("")
 
     print("Summary plot 생성 중...")
     plot_summary(model, X_sample, NUMERIC_FEATURES, CAT_FEATURES,

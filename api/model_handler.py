@@ -2,16 +2,20 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Optional, Tuple, Dict, List
+from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
 import torch
+from src.utils.helpers import first_existing_path, model_path
 
 # 로거 설정
 logger = logging.getLogger(__name__)
 
-_XGB_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "model.joblib"
-_TS_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "transformer_churn_v1.pth"
+_XGB_MODEL_PATH = model_path("model.joblib")
+_TS_MODEL_PATH = first_existing_path(
+    model_path("transformer_churn_v1.pth"),
+    model_path("churn_pro_engine.pth"),
+) or model_path("transformer_churn_v1.pth")
 
 _xgb_model: Optional[Any] = None
 _ts_model: Optional[Any] = None
