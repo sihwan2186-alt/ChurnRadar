@@ -1,4 +1,7 @@
 import logging
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
 from typing import Dict, Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +23,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup_event():
+    logger.info("서버 시작 중... 모델들을 메모리에 미리 올립니다.")
+    from api.model_handler import preload_models
+    preload_models()
 
 @app.get("/")
 def read_root():

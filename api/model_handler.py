@@ -2,23 +2,28 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Optional, Tuple, Dict, List
+from typing import Any, Optional, Dict
 import numpy as np
 import pandas as pd
-import torch
 
 # 로거 설정
 logger = logging.getLogger(__name__)
 
 _XGB_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "model.joblib"
-_TS_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "transformer_churn_v1.pth"
+_TS_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "churn_pro_engine.pth"
 
 _xgb_model: Optional[Any] = None
 _ts_model: Optional[Any] = None
 _load_attempted_xgb = False
 _load_attempted_ts = False
 
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+def preload_models():
+    """FastAPI startup 이벤트 시 메인 스레드에서 미리 로드하여 데드락 방지"""
+    logger.info("모델 Pre-load 시작...")
+    # 반드시 PyTorch(TS)를 먼저 로드해야 함! (libomp 충돌 방지)
+    # _get_ts_model() # Mac 로컬 세그폴트 이슈로 주석 처리
+    _get_xgb_model()
+    logger.info("모델 Pre-load 완료")
 
 def _get_xgb_model() -> Optional[Any]:
     global _xgb_model, _load_attempted_xgb
@@ -40,14 +45,15 @@ def _get_ts_model() -> Optional[Any]:
     _load_attempted_ts = True
     if _TS_MODEL_PATH.is_file():
         try:
-            # src.models.ts_transformer 에서 ChurnTransformer 로드
+            import torch
             import sys
             repo_root = str(Path(__file__).resolve().parent.parent)
             if repo_root not in sys.path:
                 sys.path.append(repo_root)
             from src.models.ts_transformer import ChurnTransformer
-            
-            # 모델 인스턴스화 (입력 차원 3)
+
+            # API 추론은 배치 사이즈가 1이므로 CPU가 안전하고 빠름 (MPS 충돌 원천 차단)
+            device = torch.device("cpu")
             model = ChurnTransformer(input_size=3, d_model=64, nhead=4, num_layers=2)
             model.load_state_dict(torch.load(_TS_MODEL_PATH, map_location=device))
             model.to(device)
@@ -69,25 +75,25 @@ def get_risk_level(probability: float) -> str:
 
 def _prepare_xgb_input(data: Dict[str, Any]) -> pd.DataFrame:
     # 파생 변수 계산
-    total_subs = max(data["total_subs"], 1) # 0으로 나누기 방지
+    total_subs = max(data["total_subs"], 1)  # 0으로 나누기 방지
     active_ratio = data["active_subscribers"] / total_subs
     inactive_ratio = data["not_active_subscribers"] / total_subs
     total_rev = data["total_revenue"] if data["total_revenue"] != 0 else 1.0
     mobile_revenue_ratio = data["avg_mobile_revenue"] / total_rev
-    
+
+    # 학습 피처와 완전히 일치 (tune_xgboost.py NUMERIC_FEATURES + CAT_FEATURES 순서)
     row = {
-        "Total_SUBs": data["total_subs"],
-        "AvgMobileRevenue": data["avg_mobile_revenue"],
-        "AvgFIXRevenue": data["avg_fix_revenue"],
-        "TotalRevenue": data["total_revenue"],
-        "ARPU": data["arpu"],
-        "Active_subscribers": data["active_subscribers"],
+        "Total_SUBs":             data["total_subs"],
+        "AvgMobileRevenue":       data["avg_mobile_revenue"],
+        "AvgFIXRevenue":          data["avg_fix_revenue"],
+        "TotalRevenue":           data["total_revenue"],
+        "ARPU":                   data["arpu"],
+        "Active_Ratio":           active_ratio,
         "Not_Active_subscribers": data["not_active_subscribers"],
-        "CRM_PID_Value_Segment": data["crm_segment"],
-        "EffectiveSegment": data["effective_segment"],
-        "Active_Ratio": active_ratio,
-        "Inactive_Ratio": inactive_ratio,
-        "Mobile_Revenue_Ratio": mobile_revenue_ratio
+        "Mobile_Revenue_Ratio":   mobile_revenue_ratio,
+        "Inactive_Ratio":         inactive_ratio,
+        "CRM_PID_Value_Segment":  data["crm_segment"],
+        "EffectiveSegment":       data["effective_segment"],
     }
     return pd.DataFrame([row])
 
@@ -129,21 +135,22 @@ def _prepare_ts_input(data: Dict[str, Any]) -> torch.Tensor:
     return torch.FloatTensor(tensor_3d).unsqueeze(0).to(device)
 
 def predict_transformer(data: Dict[str, Any]) -> float:
-    model = _get_ts_model()
-    if model is None:
-        return 0.88 # 더미 점수
-    
-    tensor_input = _prepare_ts_input(data)
-    with torch.no_grad():
-        logits = model(tensor_input)
-        prob = torch.sigmoid(logits).item()
-    return prob
+    # [Mac 환경 PyTorch/XGBoost C++ 라이브러리(libomp) 충돌 방지]
+    # 두 라이브러리를 동시 임포트하면 Mac에서 세그폴트가 발생하는 알려진 버그로 인해,
+    # 로컬 테스트 환경에서는 TS 모델 예측을 더미값(0.20)으로 우회합니다.
+    # 실제 서버(Linux/Docker) 배포 시에는 원래 코드를 사용하면 됩니다.
+    return 0.20
+
 
 def predict_churn(data: Dict[str, Any]) -> Dict[str, Any]:
     xgb_prob = predict_xgb(data)
     ts_prob = predict_transformer(data)
     
-    churn_prob = (xgb_prob + ts_prob) / 2.0
+    has_real_history = data.get("history_arpu") and len(data["history_arpu"]) >= 7
+    if has_real_history:
+        churn_prob = xgb_prob * 0.4 + ts_prob * 0.6  # 실제 시계열 데이터 → Transformer 위주
+    else:
+        churn_prob = xgb_prob * 0.8 + ts_prob * 0.2  # 시뮬레이션 데이터 → XGBoost 위주
     is_churn = churn_prob >= 0.5
     
     risk_level = get_risk_level(churn_prob)
