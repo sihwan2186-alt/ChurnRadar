@@ -2,24 +2,25 @@ import argparse
 import time
 from pathlib import Path
 import sys
-import os
-
 # 현재 스크립트 위치(scripts/)의 부모 폴더(프로젝트 루트)를 경로에 추가
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(REPO_ROOT))
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import recall_score, f1_score
-from sklearn.preprocessing import StandardScaler
-import numpy as np
-
-from src.data.ts_dataset import ChurnTimeSeriesDataset
-from src.models.ts_transformer import ChurnTransformer
+from src.utils.helpers import model_path, processed_data_path, resolve_input_path
 
 def train_engine(parquet_path: Path, model_out: Path, epochs: int = 5, batch_size: int = 64, lr: float = 1e-3, weight_scale: float = 0.5):
+    import numpy as np
+    import torch
+    import torch.nn as nn
+    import torch.optim as optim
+    from sklearn.metrics import f1_score, recall_score
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
+    from torch.utils.data import DataLoader, TensorDataset
+
+    from src.data.ts_dataset import ChurnTimeSeriesDataset
+    from src.models.ts_transformer import ChurnTransformer
+
     print("=" * 60)
     print("🚀 ChurnRadar Pro - Transformer Engine Training (Attention)")
     print("=" * 60)
@@ -132,12 +133,16 @@ def train_engine(parquet_path: Path, model_out: Path, epochs: int = 5, batch_siz
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=Path("data/processed/kkbox_real_gold_v1.parquet"))
-    parser.add_argument("--output", type=Path, default=Path("models/churn_pro_engine.pth"))
+    parser.add_argument("--input", type=Path, default=processed_data_path("kkbox_real_gold_v1.parquet"))
+    parser.add_argument("--output", type=Path, default=model_path("transformer_churn_v1.pth"))
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--weight_scale", type=float, default=0.5, help="소수 클래스 가중치 스케일링 계수")
     args = parser.parse_args()
-    
+
+    args.input = resolve_input_path(args.input, processed_data_path("kkbox_real_gold_v1.parquet"))
+    if not args.output.is_absolute():
+        args.output = REPO_ROOT / args.output
+
     if not args.input.is_file():
         raise SystemExit(f"입력 파일 없음: {args.input}")
     train_engine(args.input, args.output, epochs=args.epochs, weight_scale=args.weight_scale)
