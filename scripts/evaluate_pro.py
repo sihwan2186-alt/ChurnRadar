@@ -86,7 +86,7 @@ def load_xgboost_data() -> tuple[pd.DataFrame, pd.Series]:
 
 def evaluate_xgboost() -> dict:
     """XGBoost 모델 평가 (요청 1)"""
-    model_path = REPO_ROOT / "models" / "model.joblib"
+    model_path = model_file_path("model.joblib")
     if not model_path.exists():
         return {"f1": 0.0, "recall": 0.0, "precision": 0.0, "auc": 0.0}
     
@@ -114,7 +114,10 @@ def evaluate_xgboost() -> dict:
 
 def get_transformer_data() -> tuple:
     """Transformer 데이터 로드 (스케일링 및 분할 포함)"""
-    parquet_path = processed_data_path("kkbox_real_gold_v1.parquet")
+    parquet_path = first_existing_path(
+        processed_data_path("baza_ts.parquet"),
+        processed_data_path("kkbox_real_gold_v1.parquet"),
+    ) or processed_data_path("baza_ts.parquet")
     if not parquet_path.exists():
         raise FileNotFoundError(f"데이터셋을 찾을 수 없습니다: {parquet_path}")
         
@@ -283,9 +286,9 @@ def main() -> None:
     # 3. Transformer 모델 로드
     model = ChurnTransformer(input_size=3, d_model=64, nhead=4, num_layers=2).to(device)
     model_path = first_existing_path(
-        model_file_path("transformer_churn_v1.pth"),
         model_file_path("churn_pro_engine.pth"),
-    ) or model_file_path("transformer_churn_v1.pth")
+        model_file_path("transformer_churn_v1.pth"),
+    ) or model_file_path("churn_pro_engine.pth")
     tf_metrics = {"f1": 0.0, "recall": 0.0, "precision": 0.0, "auc": 0.0}
     
     if model_path.exists():

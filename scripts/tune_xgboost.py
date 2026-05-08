@@ -112,7 +112,7 @@ def objective(trial: optuna.Trial, X: pd.DataFrame, y: pd.Series) -> float:
     ])
 
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    scores = cross_val_score(pipe, X, y, cv=cv, scoring="f1", n_jobs=1)
+    scores = cross_val_score(pipe, X, y, cv=cv, scoring="recall", n_jobs=1)
     return scores.mean()
 
 
