@@ -1,0 +1,61 @@
+{
+  "basis": "Baza CSV synthetic 30-day validation split, random_state=42",
+  "tcn_training": {
+    "epochs": 20,
+    "input_format": "csv_synthetic_30day",
+    "checkpoint": "models/churn_tcn.pth",
+    "summary": "results/tcn_training_summary.json"
+  },
+  "metrics": {
+    "xgboost_0.5": {
+      "threshold": 0.5,
+      "f1": 0.16326530612244897,
+      "recall": 0.2909090909090909,
+      "precision": 0.11347517730496454,
+      "tn": 1331,
+      "fp": 250,
+      "fn": 78,
+      "tp": 32
+    },
+    "tcn_saved_threshold": {
+      "threshold": 0.44999999999999996,
+      "f1": 0.12469437652811736,
+      "recall": 0.9272727272727272,
+      "precision": 0.06684141546526867,
+      "tn": 157,
+      "fp": 1424,
+      "fn": 8,
+      "tp": 102
+    },
+    "old_api_xgb_ts": {
+      "threshold": 0.5,
+      "f1": 0.10408921933085502,
+      "recall": 0.12727272727272726,
+      "precision": 0.0880503144654088,
+      "tn": 1436,
+      "fp": 145,
+      "fn": 96,
+      "tp": 14
+    },
+    "new_api_xgb_tcn_ts": {
+      "threshold": 0.5,
+      "f1": 0.12,
+      "recall": 0.16363636363636364,
+      "precision": 0.09473684210526316,
+      "tn": 1409,
+      "fp": 172,
+      "fn": 92,
+      "tp": 18
+    }
+  },
+  "delta_new_api_vs_old_api": {
+    "f1": 0.015910780669144975,
+    "recall": 0.036363636363636376,
+    "precision": 0.0066865275898543615,
+    "tp": 4,
+    "fp": 27,
+    "fn": -4,
+    "tn": -27
+  },
+  "conclusion": "TCN improves the current API ensemble slightly versus the old XGB+TS fallback, but standalone TCN is not stronger than XGBoost by F1. Its main value here is high recall and lightweight temporal comparison."
+}

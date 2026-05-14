@@ -1,0 +1,33 @@
+{
+  "model": "TCN",
+  "input_format": "csv_synthetic_30day",
+  "input_shape": [
+    8453,
+    30,
+    3
+  ],
+  "channels": [
+    32,
+    64
+  ],
+  "kernel_size": 3,
+  "dropout": 0.2,
+  "epochs": 20,
+  "batch_size": 512,
+  "learning_rate": 0.001,
+  "weight_scale": 0.9,
+  "use_smote": false,
+  "synthetic_samples": 0,
+  "train_rows": 6762,
+  "val_rows": 1691,
+  "parameter_count": 26337,
+  "best_validation": {
+    "threshold": 0.44999999999999996,
+    "f1": 0.12469437652811736,
+    "recall": 0.9272727272727272,
+    "precision": 0.06684141546526867,
+    "epoch": 8
+  },
+  "elapsed_seconds": 33.925,
+  "model_path": "C:\\Users\\sihwa\\OneDrive\\\ubc14\ud0d5 \ud654\uba74\\\uae30\uacc4\ud559\uc2b5\ud504\ub85c\uc81d\\\ucc98\ub978\ub808\uc774\ub354\\models\\churn_tcn.pth"
+}

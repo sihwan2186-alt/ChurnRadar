@@ -6,8 +6,14 @@ from typing import Dict, Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.model_handler import predict_churn, predict_xgb, predict_transformer
-from api.schemas import ChurnPrediction, CustomerData
+from api.alert_fatigue import evaluate_alert_fatigue
+from api.model_handler import predict_churn, predict_tcn, predict_xgb, predict_transformer
+from api.schemas import (
+    AlertControlRequest,
+    AlertControlResponse,
+    ChurnPrediction,
+    CustomerData,
+)
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -40,10 +46,47 @@ def predict_churn_endpoint(data: CustomerData):
     logger.info(f"Predict requested. Customer ID: {data.customer_id}")
     data_dict = data.model_dump()
     result = predict_churn(data_dict)
+    alert_decision = evaluate_alert_fatigue(
+        risk_level=result["risk_level"],
+        churn_probability=result["churn_probability"],
+        last_alert_time=data.last_alert_time,
+        response_status=data.response_status,
+        previous_churn_probability=data.previous_churn_probability,
+        previous_risk_level=data.previous_risk_level,
+        is_vip_customer=data.is_vip_customer or data.crm_segment.upper() == "VIP",
+        is_high_revenue_customer=data.is_high_revenue_customer,
+    )
     
     return ChurnPrediction(
         customer_id=data.customer_id,
-        **result
+        **result,
+        alert_required=alert_decision.alert_required,
+        alert_channel=alert_decision.alert_channel,
+        suppress_reason=alert_decision.suppress_reason,
+        log_required=alert_decision.log_required,
+    )
+
+@app.post("/alert-control", response_model=AlertControlResponse)
+def alert_control_endpoint(data: AlertControlRequest):
+    logger.info(f"Alert control requested. Customer ID: {data.customer_id}")
+    alert_decision = evaluate_alert_fatigue(
+        risk_level=data.risk_level,
+        churn_probability=data.churn_probability,
+        last_alert_time=data.last_alert_time,
+        response_status=data.response_status,
+        previous_churn_probability=data.previous_churn_probability,
+        previous_risk_level=data.previous_risk_level,
+        is_vip_customer=data.is_vip_customer,
+        is_high_revenue_customer=data.is_high_revenue_customer,
+    )
+    return AlertControlResponse(
+        customer_id=data.customer_id,
+        churn_probability=data.churn_probability,
+        risk_level=data.risk_level,
+        alert_required=alert_decision.alert_required,
+        alert_channel=alert_decision.alert_channel,
+        suppress_reason=alert_decision.suppress_reason,
+        log_required=alert_decision.log_required,
     )
 
 @app.post("/predict/xgb", response_model=Dict[str, Any])
@@ -66,6 +109,18 @@ def predict_ts_endpoint(data: CustomerData):
         "customer_id": data.customer_id,
         "ts_probability": prob,
         "is_churn": prob >= 0.5
+    }
+
+@app.post("/predict/tcn", response_model=Dict[str, Any])
+def predict_tcn_endpoint(data: CustomerData):
+    logger.info(f"Predict TCN requested. Customer ID: {data.customer_id}")
+    data_dict = data.model_dump()
+    prob = predict_tcn(data_dict)
+    return {
+        "customer_id": data.customer_id,
+        "tcn_probability": prob,
+        "model_available": prob is not None,
+        "is_churn": prob >= 0.5 if prob is not None else False
     }
 
 @app.post("/whatif")

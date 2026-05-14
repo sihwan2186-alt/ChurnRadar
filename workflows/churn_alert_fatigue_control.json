@@ -1,0 +1,212 @@
+{
+  "name": "ChurnRadar Alert Fatigue Control Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/predict",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "customer_id", "value": "B2B-1023" },
+            { "name": "total_subs", "value": "3" },
+            { "name": "avg_mobile_revenue", "value": "50.0" },
+            { "name": "avg_fix_revenue", "value": "20.0" },
+            { "name": "total_revenue", "value": "70.0" },
+            { "name": "arpu", "value": "23.3" },
+            { "name": "active_subscribers", "value": "2" },
+            { "name": "not_active_subscribers", "value": "1" },
+            { "name": "crm_segment", "value": "VIP" },
+            { "name": "effective_segment", "value": "Business" },
+            { "name": "last_alert_time", "value": "={{ $('Google Sheets - Recent Alert History').item.json.last_alert_time || '' }}" },
+            { "name": "previous_churn_probability", "value": "={{ $('Google Sheets - Recent Alert History').item.json.churn_probability || null }}" },
+            { "name": "previous_risk_level", "value": "={{ $('Google Sheets - Recent Alert History').item.json.risk_level || '' }}" },
+            { "name": "response_status", "value": "={{ $('Google Sheets - Recent Alert History').item.json.response_status || '' }}" },
+            { "name": "is_vip_customer", "value": "true" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Predict With Alert Policy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "INSERT_GOOGLE_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "churn_log",
+          "mode": "name"
+        },
+        "lookupColumn": "customer_id",
+        "lookupValue": "B2B-1023",
+        "options": {}
+      },
+      "name": "Google Sheets - Recent Alert History",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.alert_required }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "IF Alert Required",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 220]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "message": [
+            {
+              "role": "system",
+              "content": "You are a B2B telecom churn retention specialist. Write a concise action recommendation for the account owner."
+            },
+            {
+              "role": "user",
+              "content": "=Customer ID: {{ $json.customer_id }}\nChurn probability: {{ $json.churn_probability }}\nRisk level: {{ $json.risk_level }}\nExpected revenue loss: {{ $json.expected_revenue_loss }}"
+            }
+          ]
+        }
+      },
+      "name": "OpenAI Chat",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [800, 220]
+    },
+    {
+      "parameters": {
+        "channel": "#churn-alert",
+        "text": "=[{{ $('Predict With Alert Policy').item.json.risk_level }}] Churn alert\n\nCustomer ID: {{ $('Predict With Alert Policy').item.json.customer_id }}\nProbability: {{ $('Predict With Alert Policy').item.json.churn_probability }}\nChannel policy: {{ $('Predict With Alert Policy').item.json.alert_channel }}\n\nRecommendation:\n{{ $json.choices[0].message.content }}"
+      },
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1000, 220]
+    },
+    {
+      "parameters": {
+        "sendTo": "sales@baza-telecom.com",
+        "subject": "=[Churn Alert] {{ $('Predict With Alert Policy').item.json.risk_level }} customer {{ $('Predict With Alert Policy').item.json.customer_id }}",
+        "message": "=Customer ID: {{ $('Predict With Alert Policy').item.json.customer_id }}\nChurn probability: {{ $('Predict With Alert Policy').item.json.churn_probability }}\nRisk level: {{ $('Predict With Alert Policy').item.json.risk_level }}\nExpected revenue loss: {{ $('Predict With Alert Policy').item.json.expected_revenue_loss }}\n\nRecommendation:\n{{ $('OpenAI Chat').item.json.choices[0].message.content }}"
+      },
+      "name": "Gmail Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1200, 120]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Predict With Alert Policy').item.json.alert_channel }}",
+              "operation": "contains",
+              "value2": "Gmail"
+            }
+          ]
+        }
+      },
+      "name": "IF Gmail Required",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1200, 220]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "INSERT_GOOGLE_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "churn_log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "customer_id": "={{ $json.customer_id }}",
+            "prediction_time": "={{ $now }}",
+            "churn_probability": "={{ $json.churn_probability }}",
+            "risk_level": "={{ $json.risk_level }}",
+            "alert_sent": "={{ $json.alert_required }}",
+            "alert_channel": "={{ $json.alert_channel }}",
+            "last_alert_time": "={{ $json.alert_required ? $now : '' }}",
+            "suppress_reason": "={{ $json.suppress_reason || '' }}",
+            "response_status": "",
+            "owner": "",
+            "notes": ""
+          }
+        }
+      },
+      "name": "Google Sheets - Append Alert Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [800, 420]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Google Sheets - Recent Alert History", "type": "main", "index": 0 }]]
+    },
+    "Google Sheets - Recent Alert History": {
+      "main": [[{ "node": "Predict With Alert Policy", "type": "main", "index": 0 }]]
+    },
+    "Predict With Alert Policy": {
+      "main": [
+        [
+          { "node": "IF Alert Required", "type": "main", "index": 0 },
+          { "node": "Google Sheets - Append Alert Log", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF Alert Required": {
+      "main": [[{ "node": "OpenAI Chat", "type": "main", "index": 0 }]]
+    },
+    "OpenAI Chat": {
+      "main": [[{ "node": "Slack Alert", "type": "main", "index": 0 }]]
+    },
+    "Slack Alert": {
+      "main": [[{ "node": "IF Gmail Required", "type": "main", "index": 0 }]]
+    },
+    "IF Gmail Required": {
+      "main": [[{ "node": "Gmail Alert", "type": "main", "index": 0 }]]
+    }
+  }
+}

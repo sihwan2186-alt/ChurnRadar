@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
+from api.alert_fatigue import classify_risk_level
 from src.utils.helpers import first_existing_path, model_path
 
 # 로거 설정
@@ -15,11 +16,15 @@ _TS_MODEL_PATH = first_existing_path(
     model_path("churn_pro_engine.pth"),
     model_path("transformer_churn_v1.pth"),
 ) or model_path("churn_pro_engine.pth")
+_TCN_MODEL_PATH = model_path("churn_tcn.pth")
 
 _xgb_model: Optional[Any] = None
 _ts_model: Optional[Any] = None
+_tcn_model: Optional[Any] = None
+_tcn_checkpoint: Optional[Dict[str, Any]] = None
 _load_attempted_xgb = False
 _load_attempted_ts = False
+_load_attempted_tcn = False
 
 def preload_models():
     """FastAPI startup 이벤트 시 메인 스레드에서 미리 로드하여 데드락 방지"""
@@ -70,12 +75,45 @@ def _get_ts_model() -> Optional[Any]:
         logger.warning(f"TS-Transformer 모델 파일이 없습니다: {_TS_MODEL_PATH}")
     return _ts_model
 
+def _get_tcn_model() -> Optional[Any]:
+    global _tcn_model, _tcn_checkpoint, _load_attempted_tcn
+    if _load_attempted_tcn:
+        return _tcn_model
+    _load_attempted_tcn = True
+    if _TCN_MODEL_PATH.is_file():
+        try:
+            import torch
+            from src.models.tcn_model import ChurnTCN
+
+            device = torch.device("cpu")
+            checkpoint = torch.load(_TCN_MODEL_PATH, map_location=device)
+            if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+                config = checkpoint.get("config", {})
+                model = ChurnTCN(
+                    input_size=int(config.get("input_size", 3)),
+                    channels=tuple(config.get("channels", [32, 64])),
+                    kernel_size=int(config.get("kernel_size", 3)),
+                    dropout=float(config.get("dropout", 0.2)),
+                )
+                model.load_state_dict(checkpoint["model_state_dict"])
+                _tcn_checkpoint = checkpoint
+            else:
+                model = ChurnTCN(input_size=3, channels=(32, 64))
+                model.load_state_dict(checkpoint)
+                _tcn_checkpoint = {}
+
+            model.to(device)
+            model.eval()
+            _tcn_model = model
+            logger.info("TCN 모델이 성공적으로 로드되었습니다.")
+        except Exception as e:
+            logger.error(f"TCN 로드 실패: {e}")
+    else:
+        logger.warning(f"TCN 모델 파일이 없습니다: {_TCN_MODEL_PATH}")
+    return _tcn_model
+
 def get_risk_level(probability: float) -> str:
-    if probability >= 0.8:
-        return "HIGH"
-    elif probability >= 0.5:
-        return "MEDIUM"
-    return "LOW"
+    return classify_risk_level(probability)
 
 def _prepare_xgb_input(data: Dict[str, Any]) -> pd.DataFrame:
     # 파생 변수 계산
@@ -141,6 +179,22 @@ def _prepare_ts_input(data: Dict[str, Any]) -> Any:
     tensor_3d = np.stack([energy, momentum, acceleration], axis=1) # (30, 3)
     return torch.FloatTensor(tensor_3d).unsqueeze(0).to(device)
 
+def _prepare_tcn_input(data: Dict[str, Any]) -> Any:
+    import torch
+
+    ts_tensor = _prepare_ts_input(data).cpu().numpy()
+    checkpoint = _tcn_checkpoint or {}
+    scaler_mean = checkpoint.get("scaler_mean")
+    scaler_scale = checkpoint.get("scaler_scale")
+    if scaler_mean is not None and scaler_scale is not None:
+        mean = np.array(scaler_mean, dtype=np.float32).reshape(1, 1, -1)
+        scale = np.array(scaler_scale, dtype=np.float32).reshape(1, 1, -1)
+        scale = np.where(scale == 0, 1.0, scale)
+        ts_tensor = (ts_tensor - mean) / scale
+
+    device = torch.device("cpu")
+    return torch.FloatTensor(ts_tensor).to(device)
+
 def predict_transformer(data: Dict[str, Any]) -> float:
     # [Mac 환경 PyTorch/XGBoost C++ 라이브러리(libomp) 충돌 방지]
     # 두 라이브러리를 동시 임포트하면 Mac에서 세그폴트가 발생하는 알려진 버그로 인해,
@@ -148,13 +202,36 @@ def predict_transformer(data: Dict[str, Any]) -> float:
     # 실제 서버(Linux/Docker) 배포 시에는 원래 코드를 사용하면 됩니다.
     return 0.20
 
+def predict_tcn(data: Dict[str, Any], default: Optional[float] = None) -> Optional[float]:
+    model = _get_tcn_model()
+    if model is None:
+        return default
+
+    try:
+        import torch
+
+        tensor = _prepare_tcn_input(data)
+        length = torch.tensor([min(len(data.get("history_arpu") or []), 30) or 30], dtype=torch.long)
+        with torch.no_grad():
+            logits = model(tensor, lengths=length)
+            probability = torch.sigmoid(logits).cpu().item()
+        return float(probability)
+    except Exception as e:
+        logger.error(f"TCN 예측 실패: {e}")
+        return default
+
 
 def predict_churn(data: Dict[str, Any]) -> Dict[str, Any]:
     xgb_prob = predict_xgb(data)
+    tcn_prob = predict_tcn(data)
     ts_prob = predict_transformer(data)
     
     has_real_history = data.get("history_arpu") and len(data["history_arpu"]) >= 7
-    if has_real_history:
+    if tcn_prob is not None and has_real_history:
+        churn_prob = xgb_prob * 0.3 + tcn_prob * 0.3 + ts_prob * 0.4
+    elif tcn_prob is not None:
+        churn_prob = xgb_prob * 0.7 + tcn_prob * 0.2 + ts_prob * 0.1
+    elif has_real_history:
         churn_prob = xgb_prob * 0.4 + ts_prob * 0.6  # 실제 시계열 데이터 → Transformer 위주
     else:
         churn_prob = xgb_prob * 0.8 + ts_prob * 0.2  # 시뮬레이션 데이터 → XGBoost 위주
@@ -165,6 +242,7 @@ def predict_churn(data: Dict[str, Any]) -> Dict[str, Any]:
     
     return {
         "xgb_probability": xgb_prob,
+        "tcn_probability": tcn_prob,
         "ts_probability": ts_prob,
         "churn_probability": churn_prob,
         "churn_prediction": is_churn,

@@ -21,6 +21,7 @@ import sys
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.data.ts_dataset import ChurnTimeSeriesDataset
+from src.models.tcn_model import ChurnTCN
 from src.models.ts_transformer import ChurnTransformer
 from src.utils.helpers import (
     first_existing_path,
@@ -196,6 +197,66 @@ def find_optimal_threshold(
     return {"value": float(best_thresh), **best_metrics}, val_preds_prob, val_targets
 
 
+def evaluate_tcn(
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    l_test: np.ndarray,
+    device: torch.device,
+) -> dict:
+    model_path = model_file_path("churn_tcn.pth")
+    if not model_path.exists():
+        logger.warning(f"TCN 모델을 찾을 수 없습니다: {model_path}")
+        return {"f1": 0.0, "recall": 0.0, "precision": 0.0, "auc": 0.0}
+
+    try:
+        checkpoint = torch.load(model_path, map_location=device)
+        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+            config = checkpoint.get("config", {})
+            model = ChurnTCN(
+                input_size=int(config.get("input_size", 3)),
+                channels=tuple(config.get("channels", [32, 64])),
+                kernel_size=int(config.get("kernel_size", 3)),
+                dropout=float(config.get("dropout", 0.2)),
+            ).to(device)
+            model.load_state_dict(checkpoint["model_state_dict"])
+            threshold = float(checkpoint.get("threshold", 0.5))
+        else:
+            model = ChurnTCN(input_size=3, channels=(32, 64)).to(device)
+            model.load_state_dict(checkpoint)
+            threshold = 0.5
+
+        model.eval()
+        dataset = TensorDataset(
+            torch.tensor(X_test, dtype=torch.float32),
+            torch.tensor(y_test).unsqueeze(1),
+            torch.tensor(l_test),
+        )
+        loader = DataLoader(dataset, batch_size=256, shuffle=False)
+        probs = []
+        targets = []
+
+        with torch.no_grad():
+            for batch_X, batch_y, batch_lengths in loader:
+                batch_X = batch_X.to(device)
+                logits = model(batch_X, lengths=batch_lengths.to(device))
+                probs.extend(torch.sigmoid(logits).cpu().numpy().reshape(-1).tolist())
+                targets.extend(batch_y.numpy().reshape(-1).tolist())
+
+        probs_arr = np.array(probs)
+        targets_arr = np.array(targets)
+        preds = (probs_arr >= threshold).astype(int)
+        return {
+            "f1": float(f1_score(targets_arr, preds, zero_division=0)),
+            "recall": float(recall_score(targets_arr, preds, zero_division=0)),
+            "precision": float(precision_score(targets_arr, preds, zero_division=0)),
+            "auc": float(roc_auc_score(targets_arr, probs_arr)),
+            "threshold": threshold,
+        }
+    except Exception as e:
+        logger.error(f"TCN 평가 실패: {e}")
+        return {"f1": 0.0, "recall": 0.0, "precision": 0.0, "auc": 0.0}
+
+
 def plot_confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray, save_path: Path) -> dict:
     """요청 4: Confusion Matrix 출력 및 시각화"""
     cm = confusion_matrix(y_true, y_pred)
@@ -275,6 +336,7 @@ def main() -> None:
     # 1. 정적 모델 (XGBoost) 평가
     xgb_metrics = evaluate_xgboost()
     summary_data["models"]["xgboost"] = xgb_metrics
+    summary_data["models"]["lstm"] = {"f1": 0.0, "recall": 0.0, "precision": 0.0, "auc": 0.0}
     
     # 2. Transformer 데이터 로드
     try:
@@ -282,8 +344,12 @@ def main() -> None:
     except Exception as e:
         logger.error(e)
         return
+
+    # 3. TCN 모델 평가
+    tcn_metrics = evaluate_tcn(X_test, y_test, l_test, device)
+    summary_data["models"]["tcn"] = tcn_metrics
         
-    # 3. Transformer 모델 로드
+    # 4. Transformer 모델 로드
     model = ChurnTransformer(input_size=3, d_model=64, nhead=4, num_layers=2).to(device)
     model_path = first_existing_path(
         model_file_path("churn_pro_engine.pth"),
@@ -317,9 +383,6 @@ def main() -> None:
         
     summary_data["models"]["transformer"] = tf_metrics
     
-    # LSTM (플레이스홀더)
-    summary_data["models"]["lstm"] = {"f1": 0.0, "recall": 0.0, "precision": 0.0, "auc": 0.0}
-    
     # TS-SMOTE (플레이스홀더 - 구조만 잡음)
     summary_data["ts_smote"] = {
         "before": {"f1": 0.165, "recall": 0.400},
@@ -330,6 +393,7 @@ def main() -> None:
     logger.info("=== 모델 비교 결과 ===")
     logger.info(f"XGBoost     F1: {xgb_metrics['f1']:.4f}  Recall: {xgb_metrics['recall']:.4f}  Precision: {xgb_metrics['precision']:.4f}  AUC: {xgb_metrics['auc']:.4f}")
     logger.info(f"LSTM        F1: 0.0000  Recall: 0.0000  Precision: 0.0000  AUC: 0.0000  (Model not found)")
+    logger.info(f"TCN         F1: {tcn_metrics['f1']:.4f}  Recall: {tcn_metrics['recall']:.4f}  Precision: {tcn_metrics['precision']:.4f}  AUC: {tcn_metrics['auc']:.4f}")
     logger.info(f"Transformer F1: {tf_metrics['f1']:.4f}  Recall: {tf_metrics['recall']:.4f}  Precision: {tf_metrics['precision']:.4f}  AUC: {tf_metrics['auc']:.4f}")
     logger.info("")
     
