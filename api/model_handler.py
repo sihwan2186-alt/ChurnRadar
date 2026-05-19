@@ -6,7 +6,8 @@ from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
 from api.alert_fatigue import classify_risk_level
-from src.utils.helpers import first_existing_path, model_path
+from api.threshold_policy import resolve_churn_threshold
+from src.utils.helpers import first_existing_path, model_path, result_path
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -17,11 +18,13 @@ _TS_MODEL_PATH = first_existing_path(
     model_path("transformer_churn_v1.pth"),
 ) or model_path("churn_pro_engine.pth")
 _TCN_MODEL_PATH = model_path("churn_tcn.pth")
+_THRESHOLD_PATH = result_path("threshold_optimization_summary.json")
 
 _xgb_model: Optional[Any] = None
 _ts_model: Optional[Any] = None
 _tcn_model: Optional[Any] = None
 _tcn_checkpoint: Optional[Dict[str, Any]] = None
+_churn_threshold: Optional[float] = None
 _load_attempted_xgb = False
 _load_attempted_ts = False
 _load_attempted_tcn = False
@@ -114,6 +117,13 @@ def _get_tcn_model() -> Optional[Any]:
 
 def get_risk_level(probability: float) -> str:
     return classify_risk_level(probability)
+
+def get_churn_threshold() -> float:
+    global _churn_threshold
+    if _churn_threshold is None:
+        _churn_threshold = resolve_churn_threshold(_THRESHOLD_PATH)
+        logger.info(f"Churn classification threshold: {_churn_threshold:.4f}")
+    return _churn_threshold
 
 def _prepare_xgb_input(data: Dict[str, Any]) -> pd.DataFrame:
     # 파생 변수 계산
@@ -235,7 +245,8 @@ def predict_churn(data: Dict[str, Any]) -> Dict[str, Any]:
         churn_prob = xgb_prob * 0.4 + ts_prob * 0.6  # 실제 시계열 데이터 → Transformer 위주
     else:
         churn_prob = xgb_prob * 0.8 + ts_prob * 0.2  # 시뮬레이션 데이터 → XGBoost 위주
-    is_churn = churn_prob >= 0.5
+    prediction_threshold = get_churn_threshold()
+    is_churn = churn_prob >= prediction_threshold
     
     risk_level = get_risk_level(churn_prob)
     expected_revenue_loss = data["arpu"] if is_churn else 0.0
@@ -245,6 +256,7 @@ def predict_churn(data: Dict[str, Any]) -> Dict[str, Any]:
         "tcn_probability": tcn_prob,
         "ts_probability": ts_prob,
         "churn_probability": churn_prob,
+        "prediction_threshold": prediction_threshold,
         "churn_prediction": is_churn,
         "risk_level": risk_level,
         "expected_revenue_loss": expected_revenue_loss

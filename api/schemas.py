@@ -36,6 +36,7 @@ class ChurnPrediction(BaseModel):
     tcn_probability: Optional[float] = None
     ts_probability: float
     churn_probability: float
+    prediction_threshold: float = 0.5
     churn_prediction: bool
     risk_level: str
     expected_revenue_loss: float

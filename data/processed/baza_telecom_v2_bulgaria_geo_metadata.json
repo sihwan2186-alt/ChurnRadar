@@ -1,0 +1,33 @@
+{
+  "source": "GeoNames Bulgaria postal codes",
+  "source_url": "https://download.geonames.org/export/zip/BG.zip",
+  "license_note": "GeoNames postal-code data is distributed under a Creative Commons Attribution license.",
+  "input_csv": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\raw\\raw\\baza_telecom_v2.csv",
+  "geonames_zip": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\raw\\raw\\BG_postal_codes_geonames.zip",
+  "output_csv": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\data\\processed\\baza_telecom_v2_bulgaria_geo.csv",
+  "rows": 8453,
+  "matched_rows": 6728,
+  "match_rate": 0.7959304388974329,
+  "unique_baza_postal_codes": 456,
+  "unique_geonames_postal_codes": 4359,
+  "added_columns": [
+    "Billing_ZIP_norm",
+    "bg_zip_found",
+    "bg_place_count",
+    "bg_place_name",
+    "bg_admin1_name",
+    "bg_admin1_code",
+    "bg_admin2_name",
+    "bg_admin2_code",
+    "bg_admin3_name",
+    "bg_admin3_code",
+    "bg_latitude",
+    "bg_longitude",
+    "bg_geo_accuracy",
+    "bg_distance_sofia_km",
+    "bg_distance_plovdiv_km",
+    "bg_distance_varna_km",
+    "bg_distance_burgas_km",
+    "bg_min_big_city_distance_km"
+  ]
+}

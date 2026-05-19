@@ -1,0 +1,240 @@
+{
+  "baza_rows": 8453,
+  "baza_churn_rate": 0.06494735596829528,
+  "train_rows": 5071,
+  "val_rows": 1691,
+  "test_rows": 1691,
+  "members": [
+    {
+      "member": "all|1|LGBM_balanced",
+      "source_group": "all",
+      "source_weight": 1.0,
+      "model": "LGBM_balanced",
+      "source_rows": 61240,
+      "source_churn_rate": 0.27882103200522534,
+      "val_best_f1": 0.1657142857142857,
+      "train_seconds": 1.815,
+      "test_threshold": 0.19376763353079676,
+      "test_f1": 0.1907514450867052,
+      "test_precision": 0.13983050847457626,
+      "test_recall": 0.3,
+      "test_roc_auc": 0.6136794893910644,
+      "test_average_precision": 0.10905010894990819,
+      "test_tn": 1378,
+      "test_fp": 203,
+      "test_fn": 77,
+      "test_tp": 33
+    },
+    {
+      "member": "ibm_cell|0.5|LGBM_regularized",
+      "source_group": "ibm_cell",
+      "source_weight": 0.5,
+      "model": "LGBM_regularized",
+      "source_rows": 58090,
+      "source_churn_rate": 0.28541917713892234,
+      "val_best_f1": 0.1853146853146853,
+      "train_seconds": 1.671,
+      "test_threshold": 0.16944174332631803,
+      "test_f1": 0.19064124783362218,
+      "test_precision": 0.11777301927194861,
+      "test_recall": 0.5,
+      "test_roc_auc": 0.6295411419699845,
+      "test_average_precision": 0.11476436945569096,
+      "test_tn": 1169,
+      "test_fp": 412,
+      "test_fn": 55,
+      "test_tp": 55
+    },
+    {
+      "member": "ibm_cell|1|LGBM_regularized",
+      "source_group": "ibm_cell",
+      "source_weight": 1.0,
+      "model": "LGBM_regularized",
+      "source_rows": 58090,
+      "source_churn_rate": 0.28541917713892234,
+      "val_best_f1": 0.1790281329923274,
+      "train_seconds": 1.643,
+      "test_threshold": 0.18350366226470102,
+      "test_f1": 0.19,
+      "test_precision": 0.1310344827586207,
+      "test_recall": 0.34545454545454546,
+      "test_roc_auc": 0.6213932493818642,
+      "test_average_precision": 0.1069079051796212,
+      "test_tn": 1329,
+      "test_fp": 252,
+      "test_fn": 72,
+      "test_tp": 38
+    },
+    {
+      "member": "cell|1|LGBM_regularized",
+      "source_group": "cell",
+      "source_weight": 1.0,
+      "model": "LGBM_regularized",
+      "source_rows": 51047,
+      "source_churn_rate": 0.2881853977706819,
+      "val_best_f1": 0.180623973727422,
+      "train_seconds": 1.733,
+      "test_threshold": 0.17196247719793065,
+      "test_f1": 0.1858108108108108,
+      "test_precision": 0.11410788381742738,
+      "test_recall": 0.5,
+      "test_roc_auc": 0.6312172963026853,
+      "test_average_precision": 0.11134628227442064,
+      "test_tn": 1154,
+      "test_fp": 427,
+      "test_fn": 55,
+      "test_tp": 55
+    },
+    {
+      "member": "all|0.5|LGBM_regularized",
+      "source_group": "all",
+      "source_weight": 0.5,
+      "model": "LGBM_regularized",
+      "source_rows": 61240,
+      "source_churn_rate": 0.27882103200522534,
+      "val_best_f1": 0.1894736842105263,
+      "train_seconds": 1.581,
+      "test_threshold": 0.1746611985667074,
+      "test_f1": 0.1827768014059754,
+      "test_precision": 0.11328976034858387,
+      "test_recall": 0.4727272727272727,
+      "test_roc_auc": 0.6281007417629808,
+      "test_average_precision": 0.1119098566784857,
+      "test_tn": 1174,
+      "test_fp": 407,
+      "test_fn": 58,
+      "test_tp": 52
+    },
+    {
+      "member": "all_orange|0.5|LGBM_regularized",
+      "source_group": "all_orange",
+      "source_weight": 0.5,
+      "model": "LGBM_regularized",
+      "source_rows": 73136,
+      "source_churn_rate": 0.23904780135637715,
+      "val_best_f1": 0.1761827079934747,
+      "train_seconds": 1.967,
+      "test_threshold": 0.19934712144755826,
+      "test_f1": 0.18152866242038215,
+      "test_precision": 0.11003861003861004,
+      "test_recall": 0.5181818181818182,
+      "test_roc_auc": 0.635219366338911,
+      "test_average_precision": 0.11335891123375119,
+      "test_tn": 1120,
+      "test_fp": 461,
+      "test_fn": 53,
+      "test_tp": 57
+    },
+    {
+      "member": "orange_uplift|1|LGBM_regularized",
+      "source_group": "orange_uplift",
+      "source_weight": 1.0,
+      "model": "LGBM_regularized",
+      "source_rows": 11896,
+      "source_churn_rate": 0.03429724277067922,
+      "val_best_f1": 0.1806451612903226,
+      "train_seconds": 0.622,
+      "test_threshold": 0.6240316417533183,
+      "test_f1": 0.17982456140350878,
+      "test_precision": 0.11849710982658959,
+      "test_recall": 0.37272727272727274,
+      "test_roc_auc": 0.5935598872980277,
+      "test_average_precision": 0.10183794348964605,
+      "test_tn": 1276,
+      "test_fp": 305,
+      "test_fn": 69,
+      "test_tp": 41
+    },
+    {
+      "member": "cell_orange|1|LGBM_regularized",
+      "source_group": "cell_orange",
+      "source_weight": 1.0,
+      "model": "LGBM_regularized",
+      "source_rows": 62943,
+      "source_churn_rate": 0.2402014521074623,
+      "val_best_f1": 0.18556701030927839,
+      "train_seconds": 1.722,
+      "test_threshold": 0.22912731329574537,
+      "test_f1": 0.1769436997319035,
+      "test_precision": 0.12547528517110265,
+      "test_recall": 0.3,
+      "test_roc_auc": 0.6264245874302801,
+      "test_average_precision": 0.1106117458401451,
+      "test_tn": 1351,
+      "test_fp": 230,
+      "test_fn": 77,
+      "test_tp": 33
+    }
+  ],
+  "blend": {
+    "threshold": 0.3728414131656944,
+    "f1": 0.16199376947040497,
+    "precision": 0.09774436090225563,
+    "recall": 0.4727272727272727,
+    "roc_auc": 0.618196193433385,
+    "average_precision": 0.10890099555812095,
+    "tn": 1101,
+    "fp": 480,
+    "fn": 58,
+    "tp": 52,
+    "val_best_f1": 0.2
+  },
+  "preset": "expanded",
+  "optimize_weights": true,
+  "blend_weights": {
+    "all|1|LGBM_balanced": 0.0,
+    "ibm_cell|0.5|LGBM_regularized": 0.0,
+    "ibm_cell|1|LGBM_regularized": 0.3535872589409422,
+    "cell|1|LGBM_regularized": 0.0,
+    "all|0.5|LGBM_regularized": 0.0,
+    "all_orange|0.5|LGBM_regularized": 0.0,
+    "orange_uplift|1|LGBM_regularized": 0.2870239840418044,
+    "cell_orange|1|LGBM_regularized": 0.3593887570172535
+  },
+  "score_ranges": {
+    "all|1|LGBM_balanced": [
+      0.049674607192927475,
+      0.3534468293958901
+    ],
+    "ibm_cell|0.5|LGBM_regularized": [
+      0.06607442164489616,
+      0.3962946227812586
+    ],
+    "ibm_cell|1|LGBM_regularized": [
+      0.10211089669931536,
+      0.3682554499123222
+    ],
+    "cell|1|LGBM_regularized": [
+      0.09758840544779597,
+      0.322181524524547
+    ],
+    "all|0.5|LGBM_regularized": [
+      0.06887139246615555,
+      0.3905949099531177
+    ],
+    "all_orange|0.5|LGBM_regularized": [
+      0.07575193053152235,
+      0.4174652514007513
+    ],
+    "orange_uplift|1|LGBM_regularized": [
+      0.29214660214768917,
+      0.8139530877346047
+    ],
+    "cell_orange|1|LGBM_regularized": [
+      0.10239677083757058,
+      0.41637638023688245
+    ]
+  },
+  "table_path": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\results\\baza_transfer_expanded_blend_weighted_members.csv",
+  "model_path": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\models\\baza_transfer_expanded_blend_weighted_model.joblib",
+  "data_sources": {
+    "orange_uplift": {
+      "openml_id": 45580,
+      "name": "churn-uplift-mlg",
+      "creator": "Machine Learning Group (ULB)",
+      "collection_date": "09-2020",
+      "license": "CC BY-NC-ND",
+      "raw_path": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\raw\\raw\\churn_uplift_mlg.parquet"
+    }
+  }
+}

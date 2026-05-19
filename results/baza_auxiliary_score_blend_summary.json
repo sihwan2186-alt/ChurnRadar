@@ -1,0 +1,274 @@
+{
+  "rows": 8453,
+  "churn_rate": 0.06494735596829528,
+  "train_rows": 5071,
+  "val_rows": 1691,
+  "test_rows": 1691,
+  "weights": {
+    "transfer_blend": 0.96,
+    "bulgaria_public_lda": 0.02,
+    "baza_core_xgboost_d1": 0.02
+  },
+  "score_ranges": {
+    "transfer_blend": {
+      "min": 0.0547577387054828,
+      "max": 0.9298901848174266
+    },
+    "bulgaria_public_lda": {
+      "min": 0.0029725512548290584,
+      "max": 0.887792134560522
+    },
+    "baza_core_xgboost_d1": {
+      "min": 0.11821626126766205,
+      "max": 0.8116509318351746
+    }
+  },
+  "transfer": {
+    "members": [
+      {
+        "member": "all|1|LGBM_balanced",
+        "source_rows": 61240,
+        "source_churn_rate": 0.27882103200522534,
+        "val_best_f1": 0.1657142857142857,
+        "test": {
+          "threshold": 0.19376763353079676,
+          "f1": 0.1907514450867052,
+          "precision": 0.13983050847457626,
+          "recall": 0.3,
+          "roc_auc": 0.6136794893910644,
+          "average_precision": 0.10905010894990819,
+          "tn": 1378,
+          "fp": 203,
+          "fn": 77,
+          "tp": 33,
+          "pred_pos_rate": 0.13956238911886457
+        }
+      },
+      {
+        "member": "all|0.5|LGBM_regularized",
+        "source_rows": 61240,
+        "source_churn_rate": 0.27882103200522534,
+        "val_best_f1": 0.1894736842105263,
+        "test": {
+          "threshold": 0.1746611985667074,
+          "f1": 0.1827768014059754,
+          "precision": 0.11328976034858387,
+          "recall": 0.4727272727272727,
+          "roc_auc": 0.6281007417629808,
+          "average_precision": 0.1119098566784857,
+          "tn": 1174,
+          "fp": 407,
+          "fn": 58,
+          "tp": 52,
+          "pred_pos_rate": 0.2714370195150798
+        }
+      },
+      {
+        "member": "orange_uplift|1|LGBM_regularized",
+        "source_rows": 11896,
+        "source_churn_rate": 0.03429724277067922,
+        "val_best_f1": 0.1806451612903226,
+        "test": {
+          "threshold": 0.6240316417533183,
+          "f1": 0.17982456140350878,
+          "precision": 0.11849710982658959,
+          "recall": 0.37272727272727274,
+          "roc_auc": 0.5935598872980277,
+          "average_precision": 0.10183794348964605,
+          "tn": 1276,
+          "fp": 305,
+          "fn": 69,
+          "tp": 41,
+          "pred_pos_rate": 0.2046126552335896
+        }
+      },
+      {
+        "member": "cell_orange|1|LGBM_regularized",
+        "source_rows": 62943,
+        "source_churn_rate": 0.2402014521074623,
+        "val_best_f1": 0.18556701030927839,
+        "test": {
+          "threshold": 0.22912731329574537,
+          "f1": 0.1769436997319035,
+          "precision": 0.12547528517110265,
+          "recall": 0.3,
+          "roc_auc": 0.6264245874302801,
+          "average_precision": 0.1106117458401451,
+          "tn": 1351,
+          "fp": 230,
+          "fn": 77,
+          "tp": 33,
+          "pred_pos_rate": 0.15552927261975164
+        }
+      }
+    ],
+    "score_ranges": {
+      "all|1|LGBM_balanced": [
+        0.049674607192927475,
+        0.3534468293958901
+      ],
+      "all|0.5|LGBM_regularized": [
+        0.06887139246615555,
+        0.3905949099531177
+      ],
+      "orange_uplift|1|LGBM_regularized": [
+        0.29214660214768917,
+        0.8139530877346047
+      ],
+      "cell_orange|1|LGBM_regularized": [
+        0.10239677083757058,
+        0.41637638023688245
+      ]
+    },
+    "train_seconds": 3.946
+  },
+  "public": {
+    "model": "LDA_shrinkage",
+    "feature_set": "bulgaria_public_full",
+    "features": [
+      "Total_SUBs",
+      "AvgMobileRevenue",
+      "AvgFIXRevenue",
+      "TotalRevenue",
+      "ARPU",
+      "Active_Ratio",
+      "Not_Active_subscribers",
+      "Mobile_Revenue_Ratio",
+      "Inactive_Ratio",
+      "Suspended_subscribers",
+      "Suspended_Ratio",
+      "bg_zip_found",
+      "bg_place_count",
+      "bg_latitude",
+      "bg_longitude",
+      "bg_geo_accuracy",
+      "bg_distance_sofia_km",
+      "bg_distance_plovdiv_km",
+      "bg_distance_varna_km",
+      "bg_distance_burgas_km",
+      "bg_min_big_city_distance_km",
+      "nsi_district_found",
+      "nsi_municipality_found",
+      "district_nsi_population_total",
+      "district_nsi_population_male",
+      "district_nsi_population_female",
+      "district_nsi_population_urban",
+      "district_nsi_population_rural",
+      "district_nsi_population_male_ratio",
+      "district_nsi_population_female_ratio",
+      "district_nsi_population_urban_ratio",
+      "district_nsi_population_rural_ratio",
+      "district_nsi_workage_population_total",
+      "district_nsi_under_working_age_total",
+      "district_nsi_under_working_age_urban",
+      "district_nsi_working_working_age_total",
+      "district_nsi_working_working_age_urban",
+      "district_nsi_over_working_age_total",
+      "district_nsi_over_working_age_urban",
+      "district_nsi_under_working_age_total_ratio",
+      "district_nsi_working_working_age_total_ratio",
+      "district_nsi_over_working_age_total_ratio",
+      "municipality_nsi_population_total",
+      "municipality_nsi_population_male",
+      "municipality_nsi_population_female",
+      "municipality_nsi_population_urban",
+      "municipality_nsi_population_rural",
+      "municipality_nsi_population_male_ratio",
+      "municipality_nsi_population_female_ratio",
+      "municipality_nsi_population_urban_ratio",
+      "municipality_nsi_population_rural_ratio",
+      "municipality_nsi_workage_population_total",
+      "municipality_nsi_under_working_age_total",
+      "municipality_nsi_under_working_age_urban",
+      "municipality_nsi_working_working_age_total",
+      "municipality_nsi_working_working_age_urban",
+      "municipality_nsi_over_working_age_total",
+      "municipality_nsi_over_working_age_urban",
+      "municipality_nsi_under_working_age_total_ratio",
+      "municipality_nsi_working_working_age_total_ratio",
+      "municipality_nsi_over_working_age_total_ratio",
+      "CRM_PID_Value_Segment",
+      "EffectiveSegment",
+      "Billing_ZIP",
+      "KA_name",
+      "Billing_ZIP_norm",
+      "bg_place_name",
+      "bg_admin1_name",
+      "bg_admin1_code",
+      "bg_admin2_name",
+      "bg_admin2_code",
+      "bg_admin3_name",
+      "bg_admin3_code",
+      "nsi_district_norm",
+      "nsi_municipality_norm"
+    ],
+    "val_best_f1": 0.15165876777251183,
+    "test": {
+      "threshold": 0.061226161549903416,
+      "f1": 0.14729950900163666,
+      "precision": 0.08982035928143713,
+      "recall": 0.4090909090909091,
+      "roc_auc": 0.5712207463630613,
+      "average_precision": 0.0896567991720355,
+      "tn": 1125,
+      "fp": 456,
+      "fn": 65,
+      "tp": 45,
+      "pred_pos_rate": 0.29627439384979304
+    },
+    "train_seconds": 0.369
+  },
+  "core_xgb": {
+    "model": "XGBoost_d1",
+    "feature_set": "baza_feature_core",
+    "features": [
+      "active_subscribers",
+      "not_active_subscribers",
+      "suspended_subscribers",
+      "total_subs",
+      "avg_mobile_revenue",
+      "avg_fix_revenue",
+      "total_revenue",
+      "arpu",
+      "billing_zip",
+      "not_active_missing",
+      "suspended_missing",
+      "arpu_missing",
+      "billing_zip_missing",
+      "active_ratio",
+      "inactive_ratio",
+      "mobile_revenue_ratio",
+      "fixed_revenue_ratio"
+    ],
+    "val_best_f1": 0.18055555555555558,
+    "test": {
+      "threshold": 0.5411529541015625,
+      "f1": 0.1643835616438356,
+      "precision": 0.10975609756097561,
+      "recall": 0.32727272727272727,
+      "roc_auc": 0.5664999137484906,
+      "average_precision": 0.09207798119517496,
+      "tn": 1289,
+      "fp": 292,
+      "fn": 74,
+      "tp": 36,
+      "pred_pos_rate": 0.19396806623299823
+    },
+    "train_seconds": 0.232
+  },
+  "blend": {
+    "threshold": 0.4332932014748541,
+    "f1": 0.2039045553145336,
+    "precision": 0.1339031339031339,
+    "recall": 0.42727272727272725,
+    "roc_auc": 0.6184923236156633,
+    "average_precision": 0.11135502870351827,
+    "tn": 1277,
+    "fp": 304,
+    "fn": 63,
+    "tp": 47,
+    "pred_pos_rate": 0.20756948551153165,
+    "val_best_f1": 0.18666666666666668
+  },
+  "model_path": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\models\\baza_auxiliary_score_blend_model.joblib"
+}

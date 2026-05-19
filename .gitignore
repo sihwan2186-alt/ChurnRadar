@@ -3,7 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
+.venv/
 .env
+.codex_tmp/
 
 # Mac OS 관련
 **/.DS_Store
@@ -19,6 +21,10 @@ data/*
 *.pth
 models/*.joblib
 !models/.gitkeep
+
+# Generated experiment datasets (rebuild with scripts)
+data/processed/kkbox_customer_month_churn.csv
+data/processed/kkbox_activity_common_features.csv
 
 # 주피터 노트북 체크포인트
 .ipynb_checkpoints

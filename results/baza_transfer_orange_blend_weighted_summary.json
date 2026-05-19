@@ -1,0 +1,140 @@
+{
+  "baza_rows": 8453,
+  "baza_churn_rate": 0.06494735596829528,
+  "train_rows": 5071,
+  "val_rows": 1691,
+  "test_rows": 1691,
+  "members": [
+    {
+      "member": "all|1|LGBM_balanced",
+      "source_group": "all",
+      "source_weight": 1.0,
+      "model": "LGBM_balanced",
+      "source_rows": 61240,
+      "source_churn_rate": 0.27882103200522534,
+      "val_best_f1": 0.1657142857142857,
+      "train_seconds": 1.979,
+      "test_threshold": 0.19376763353079676,
+      "test_f1": 0.1907514450867052,
+      "test_precision": 0.13983050847457626,
+      "test_recall": 0.3,
+      "test_roc_auc": 0.6136794893910644,
+      "test_average_precision": 0.10905010894990819,
+      "test_tn": 1378,
+      "test_fp": 203,
+      "test_fn": 77,
+      "test_tp": 33
+    },
+    {
+      "member": "all|0.5|LGBM_regularized",
+      "source_group": "all",
+      "source_weight": 0.5,
+      "model": "LGBM_regularized",
+      "source_rows": 61240,
+      "source_churn_rate": 0.27882103200522534,
+      "val_best_f1": 0.1894736842105263,
+      "train_seconds": 2.061,
+      "test_threshold": 0.1746611985667074,
+      "test_f1": 0.1827768014059754,
+      "test_precision": 0.11328976034858387,
+      "test_recall": 0.4727272727272727,
+      "test_roc_auc": 0.6281007417629808,
+      "test_average_precision": 0.1119098566784857,
+      "test_tn": 1174,
+      "test_fp": 407,
+      "test_fn": 58,
+      "test_tp": 52
+    },
+    {
+      "member": "orange_uplift|1|LGBM_regularized",
+      "source_group": "orange_uplift",
+      "source_weight": 1.0,
+      "model": "LGBM_regularized",
+      "source_rows": 11896,
+      "source_churn_rate": 0.03429724277067922,
+      "val_best_f1": 0.1806451612903226,
+      "train_seconds": 1.165,
+      "test_threshold": 0.6240316417533183,
+      "test_f1": 0.17982456140350878,
+      "test_precision": 0.11849710982658959,
+      "test_recall": 0.37272727272727274,
+      "test_roc_auc": 0.5935598872980277,
+      "test_average_precision": 0.10183794348964605,
+      "test_tn": 1276,
+      "test_fp": 305,
+      "test_fn": 69,
+      "test_tp": 41
+    },
+    {
+      "member": "cell_orange|1|LGBM_regularized",
+      "source_group": "cell_orange",
+      "source_weight": 1.0,
+      "model": "LGBM_regularized",
+      "source_rows": 62943,
+      "source_churn_rate": 0.2402014521074623,
+      "val_best_f1": 0.18556701030927839,
+      "train_seconds": 2.035,
+      "test_threshold": 0.22912731329574537,
+      "test_f1": 0.1769436997319035,
+      "test_precision": 0.12547528517110265,
+      "test_recall": 0.3,
+      "test_roc_auc": 0.6264245874302801,
+      "test_average_precision": 0.1106117458401451,
+      "test_tn": 1351,
+      "test_fp": 230,
+      "test_fn": 77,
+      "test_tp": 33
+    }
+  ],
+  "blend": {
+    "threshold": 0.3811464050151165,
+    "f1": 0.18336886993603413,
+    "precision": 0.11977715877437325,
+    "recall": 0.39090909090909093,
+    "roc_auc": 0.6252975677074348,
+    "average_precision": 0.1120197738179996,
+    "tn": 1265,
+    "fp": 316,
+    "fn": 67,
+    "tp": 43,
+    "val_best_f1": 0.1978494623655914
+  },
+  "preset": "default",
+  "optimize_weights": true,
+  "blend_weights": {
+    "all|1|LGBM_balanced": 0.0,
+    "all|0.5|LGBM_regularized": 0.4122575457645278,
+    "orange_uplift|1|LGBM_regularized": 0.11076849694114899,
+    "cell_orange|1|LGBM_regularized": 0.47697395729432307
+  },
+  "score_ranges": {
+    "all|1|LGBM_balanced": [
+      0.049674607192927475,
+      0.3534468293958901
+    ],
+    "all|0.5|LGBM_regularized": [
+      0.06887139246615555,
+      0.3905949099531177
+    ],
+    "orange_uplift|1|LGBM_regularized": [
+      0.29214660214768917,
+      0.8139530877346047
+    ],
+    "cell_orange|1|LGBM_regularized": [
+      0.10239677083757058,
+      0.41637638023688245
+    ]
+  },
+  "table_path": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\results\\baza_transfer_orange_blend_weighted_members.csv",
+  "model_path": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\models\\baza_transfer_orange_blend_weighted_model.joblib",
+  "data_sources": {
+    "orange_uplift": {
+      "openml_id": 45580,
+      "name": "churn-uplift-mlg",
+      "creator": "Machine Learning Group (ULB)",
+      "collection_date": "09-2020",
+      "license": "CC BY-NC-ND",
+      "raw_path": "C:\\Users\\sihwa\\OneDrive\\바탕 화면\\기계학습프로젝\\처른레이더\\raw\\raw\\churn_uplift_mlg.parquet"
+    }
+  }
+}
