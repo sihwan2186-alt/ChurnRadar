@@ -1,0 +1,305 @@
+{
+  "id": "churnradaraiagentfeedbackloop",
+  "name": "ChurnRadar AI Agent Feedback Loop",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "41000000-0000-4000-9000-000000000001",
+      "name": "FastAPI - 이탈 신호 발생",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    customer_id: 'B2B-1023',\n    company_name: 'Demo Manufacturing Co.',\n    churn_probability: 0.82,\n    risk_level: 'Critical',\n    expected_revenue_loss: 173000,\n    fastapi_event: 'churn_signal_detected',\n    model_version: 'churnradar-xgb-tcn-ts-v1',\n    prediction_time: new Date().toISOString(),\n    raw_signal: {\n      energy: 'decreasing',\n      momentum: 'negative',\n      acceleration: 'risk spike near final period'\n    },\n    tool1_result: {\n      shap_top_features: [\n        { feature: 'Inactive_Ratio', contribution: 0.31 },\n        { feature: 'Revenue_per_Active_Sub', contribution: 0.26 },\n        { feature: 'Momentum_30d', contribution: 0.22 }\n      ],\n      tensor_input_shape: 'Customer x 30 Days x 3 Features',\n      tensor_interpretation: 'Energy 감소, Momentum 음수 전환, Acceleration 위험 구간 발생'\n    }\n  }\n}];"
+      },
+      "id": "41000000-0000-4000-9000-000000000002",
+      "name": "Tool1 - SHAP / 3D Tensor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => {\n  const shapText = item.json.tool1_result.shap_top_features\n    .map((feature) => `${feature.feature}: ${feature.contribution}`)\n    .join(', ');\n\n  return {\n    json: {\n      ...item.json,\n      analyst_output: {\n        diagnosis: `${item.json.customer_id}는 이탈 확률 ${(item.json.churn_probability * 100).toFixed(1)}%의 ${item.json.risk_level} 고객입니다. 주요 원인은 ${shapText}이며, 3D Tensor상 ${item.json.tool1_result.tensor_interpretation} 패턴이 확인됩니다.`,\n        evidence_type: ['SHAP', '3D Tensor', 'Churn Probability'],\n        next_agent_instruction: '방어 전략 수립 단계에서 What-if Simulation으로 최적 대응안을 비교하세요.'\n      }\n    }\n  };\n});"
+      },
+      "id": "41000000-0000-4000-9000-000000000003",
+      "name": "① 분석가 (Analyst) - 이탈 원인 심층 진단",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    ...item.json,\n    tool2_result: {\n      baseline_probability: item.json.churn_probability,\n      scenarios: [\n        { action: '10% discount', expected_probability: 0.7, action_cost: 30000 },\n        { action: 'direct account call', expected_probability: 0.73, action_cost: 10000 },\n        { action: 'bundle retention offer', expected_probability: 0.66, action_cost: 45000 }\n      ]\n    }\n  }\n}));"
+      },
+      "id": "41000000-0000-4000-9000-000000000004",
+      "name": "Tool2 - What-if Simulation API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => {\n  const bestScenario = item.json.tool2_result.scenarios\n    .slice()\n    .sort((a, b) => a.expected_probability - b.expected_probability)[0];\n\n  return {\n    json: {\n      ...item.json,\n      selected_strategy: bestScenario,\n      strategist_output: {\n        recommendation: `${bestScenario.action} 전략을 우선 적용합니다. 예상 이탈 확률은 ${(bestScenario.expected_probability * 100).toFixed(1)}%까지 낮아질 수 있습니다.`,\n        expected_cost: bestScenario.action_cost,\n        reason: '이탈 확률 감소 폭이 가장 큰 대응안입니다.',\n        next_agent_instruction: '영업 담당자가 바로 사용할 수 있는 Slack/Gmail 메시지와 상담 스크립트를 작성하세요.'\n      }\n    }\n  };\n});"
+      },
+      "id": "41000000-0000-4000-9000-000000000005",
+      "name": "② 해결사 (Strategist) - 방어 전략 수립",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    ...item.json,\n    tool3_result: {\n      slack_channel: '#churn-alert-high',\n      gmail_to: 'sales-team-a@example.com',\n      gmail_cc: 'retention-manager@example.com',\n      delivery_policy: 'Critical 고객은 Slack과 Gmail 모두 발송'\n    }\n  }\n}));"
+      },
+      "id": "41000000-0000-4000-9000-000000000006",
+      "name": "Tool3 - Slack / Gmail API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => {\n  const probability = (item.json.churn_probability * 100).toFixed(1);\n  const loss = item.json.expected_revenue_loss.toLocaleString();\n\n  return {\n    json: {\n      ...item.json,\n      communicator_output: {\n        slack_message: `[${item.json.risk_level}] ${item.json.company_name} 이탈 위험 ${probability}% 감지. 권장 전략: ${item.json.selected_strategy.action}`,\n        gmail_subject: `[ChurnRadar] ${item.json.customer_id} 이탈 위험 대응 요청`,\n        gmail_body: `고객 ${item.json.company_name}의 이탈 위험이 감지되었습니다. 예상 손실은 ${loss}원입니다.\\n\\n진단 근거: ${item.json.analyst_output.diagnosis}\\n\\n권장 전략: ${item.json.strategist_output.recommendation}`,\n        sales_script: `안녕하세요. 최근 서비스 이용 패턴을 점검해보니 일부 사용량 변화가 확인되어 연락드렸습니다. 현재 조건에서 ${item.json.selected_strategy.action} 혜택을 제안드릴 수 있습니다.`\n      },\n      next_agent_instruction: '알림, 스크립트, 리포트가 모두 기록 가능한지 검계하세요.'\n    }\n  };\n});"
+      },
+      "id": "41000000-0000-4000-9000-000000000007",
+      "name": "③ 작가 (Communicator) - 맞춤형 메시징 생성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    ...item.json,\n    tool4_result: {\n      google_sheet_name: 'churn_log',\n      mlflow_experiment: 'churnradar_retention_feedback',\n      log_required: true,\n      feedback_key: `${item.json.customer_id}-${Date.now()}`\n    }\n  }\n}));"
+      },
+      "id": "41000000-0000-4000-9000-000000000008",
+      "name": "Tool4 - Google Sheets / MLflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    ...item.json,\n    auditor_output: {\n      audit_status: 'passed',\n      checked_items: [\n        'SHAP/3D Tensor diagnosis exists',\n        'What-if retention strategy exists',\n        'Slack/Gmail message exists',\n        'Google Sheets/MLflow logging target exists'\n      ],\n      tracking_report_required: true\n    }\n  }\n}));"
+      },
+      "id": "41000000-0000-4000-9000-000000000009",
+      "name": "④ 감사관 (Auditor) - 성과 기록 및 검계",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    output_type: 'Slack 긴급 알림',\n    channel: item.json.tool3_result.slack_channel,\n    text: item.json.communicator_output.slack_message,\n    preview_only: true\n  }\n}));"
+      },
+      "id": "41000000-0000-4000-9000-000000000010",
+      "name": "Output - Slack 긴급 알림",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    output_type: '영업 대응 스크립트',\n    customer_id: item.json.customer_id,\n    company_name: item.json.company_name,\n    script: item.json.communicator_output.sales_script,\n    selected_strategy: item.json.selected_strategy\n  }\n}));"
+      },
+      "id": "41000000-0000-4000-9000-000000000011",
+      "name": "Output - 영업 대응 스크립트",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    output_type: '성과 추적 리포트',\n    customer_id: item.json.customer_id,\n    churn_probability: item.json.churn_probability,\n    risk_level: item.json.risk_level,\n    expected_revenue_loss: item.json.expected_revenue_loss,\n    selected_action: item.json.selected_strategy.action,\n    action_cost: item.json.selected_strategy.action_cost,\n    google_sheet_name: item.json.tool4_result.google_sheet_name,\n    mlflow_experiment: item.json.tool4_result.mlflow_experiment,\n    audit_status: item.json.auditor_output.audit_status,\n    feedback_key: item.json.tool4_result.feedback_key\n  }\n}));"
+      },
+      "id": "41000000-0000-4000-9000-000000000012",
+      "name": "Output - 성과 추적 리포트",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    feedback_loop: true,\n    target: 'FastAPI / retraining queue',\n    payload: {\n      customer_id: item.json.customer_id,\n      churn_probability: item.json.churn_probability,\n      risk_level: item.json.risk_level,\n      selected_action: item.json.selected_action,\n      action_cost: item.json.action_cost,\n      feedback_key: item.json.feedback_key\n    },\n    note: 'n8n에서는 실제 순환 연결 대신 이 노드에서 FastAPI 또는 재학습 큐로 피드백 payload를 전달합니다.'\n  }\n}));"
+      },
+      "id": "41000000-0000-4000-9000-000000000013",
+      "name": "Feedback Loop - FastAPI 재학습 입력",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        480
+      ]
+    }
+  ],
+  "connections": {
+    "FastAPI - 이탈 신호 발생": {
+      "main": [
+        [
+          {
+            "node": "Tool1 - SHAP / 3D Tensor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool1 - SHAP / 3D Tensor": {
+      "main": [
+        [
+          {
+            "node": "① 분석가 (Analyst) - 이탈 원인 심층 진단",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "① 분석가 (Analyst) - 이탈 원인 심층 진단": {
+      "main": [
+        [
+          {
+            "node": "Tool2 - What-if Simulation API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool2 - What-if Simulation API": {
+      "main": [
+        [
+          {
+            "node": "② 해결사 (Strategist) - 방어 전략 수립",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "② 해결사 (Strategist) - 방어 전략 수립": {
+      "main": [
+        [
+          {
+            "node": "Tool3 - Slack / Gmail API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool3 - Slack / Gmail API": {
+      "main": [
+        [
+          {
+            "node": "③ 작가 (Communicator) - 맞춤형 메시징 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "③ 작가 (Communicator) - 맞춤형 메시징 생성": {
+      "main": [
+        [
+          {
+            "node": "Tool4 - Google Sheets / MLflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool4 - Google Sheets / MLflow": {
+      "main": [
+        [
+          {
+            "node": "④ 감사관 (Auditor) - 성과 기록 및 검계",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "④ 감사관 (Auditor) - 성과 기록 및 검계": {
+      "main": [
+        [
+          {
+            "node": "Output - Slack 긴급 알림",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Output - 영업 대응 스크립트",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Output - 성과 추적 리포트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output - 성과 추적 리포트": {
+      "main": [
+        [
+          {
+            "node": "Feedback Loop - FastAPI 재학습 입력",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-05-20T00:00:00.000Z",
+  "versionId": "41000000-0000-4000-9000-000000000014",
+  "active": false
+}

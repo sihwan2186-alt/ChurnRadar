@@ -1,0 +1,128 @@
+{
+  "id": "churn5050balancedassumption",
+  "name": "ChurnRadar 50-50 Balanced Assumption Experiment",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b1f5ad6b-4f38-4e0f-94a5-915688781001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = {\n  experiment: 'balanced_population_assumption_50_50',\n  title: 'ChurnRadar 50:50 균형 가정 실험 결과',\n  assumption_note: '전체 이탈 고객 549명과 동일한 수의 비이탈 고객 549명을 무작위 추출하여 이탈/비이탈 50:50 평가 환경을 만든 가정 실험입니다.',\n  caveat: '이 결과는 실제 운영 분포가 아니라 50:50 균형 가정에서만 유효합니다. 실제 Baza 원본 분포의 이탈률은 약 6.5%입니다.',\n  dataset: {\n    source: 'Baza Telecom v2 B2B CRM',\n    rows: 8453,\n    churn_count: 549,\n    non_churn_count: 7904,\n    original_churn_rate: 0.06494735596829528,\n    balanced_sample_rows: 1098,\n    balanced_churn_rate: 0.5,\n    balanced_sample_fraction_of_original: 0.12989471193659055\n  },\n  model: {\n    name: 'RandomForest_balanced',\n    threshold: 0.30705154557360087\n  },\n  metrics_50_50: {\n    f1_score: 0.6666666666666666,\n    recall: 0.990909090909091,\n    precision: 0.5023041474654378,\n    roc_auc: 0.5452892561983472,\n    average_precision: 0.5386199095476428,\n    confusion_matrix: {\n      tn: 2,\n      fp: 108,\n      fn: 1,\n      tp: 109\n    },\n    predicted_positive_rate: 0.9863636363636363\n  },\n  default_threshold_0_5: {\n    f1_score: 0.5352112676056338,\n    recall: 0.5181818181818182,\n    precision: 0.5533980582524272,\n    confusion_matrix: {\n      tn: 64,\n      fp: 46,\n      fn: 53,\n      tp: 57\n    }\n  },\n  real_distribution_reference: {\n    note: '실제 6.5% 원본 분포 기준 참고값입니다. 50:50 가정 결과와 분리해서 보고해야 합니다.',\n    f1_score: 0.12181616832779624,\n    recall: 0.5,\n    precision: 0.06935687263556116\n  }\n};\n\nresult.goal_achieved = result.metrics_50_50.f1_score >= 0.6;\nresult.presentation_summary = `50:50 균형 가정 실험에서 F1-score ${result.metrics_50_50.f1_score.toFixed(4)}, Recall ${result.metrics_50_50.recall.toFixed(4)}, Precision ${result.metrics_50_50.precision.toFixed(4)}를 달성했습니다. 단, 이는 실제 운영 분포가 아니라 이탈/비이탈을 균등하게 맞춘 가정 실험 결과입니다.`;\n\nreturn [{ json: result }];"
+      },
+      "id": "2ab9a9fd-a0f7-4140-b5e8-915688781002",
+      "name": "Build 50-50 Experiment Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.goal_achieved }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "19fdfc5d-6fdc-4850-8ff3-915688781003",
+      "name": "IF F1 Goal Achieved",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        520,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    status: 'ACHIEVED_UNDER_50_50_ASSUMPTION',\n    report_sentence: $json.presentation_summary,\n    f1_score: $json.metrics_50_50.f1_score,\n    recall: $json.metrics_50_50.recall,\n    precision: $json.metrics_50_50.precision,\n    caution: $json.caveat,\n    recommended_report_wording: '50:50 균형 가정 실험에서는 F1-score 0.6667, Recall 0.9909를 달성하였다. 다만 실제 Baza 원본 분포는 이탈률 6.5%의 불균형 데이터이므로, 실제 운영 성능과는 구분하여 해석해야 한다.'\n  }\n}];"
+      },
+      "id": "957f3717-42a4-4976-9a2a-915688781004",
+      "name": "Build Achieved Report Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    status: 'NOT_ACHIEVED',\n    report_sentence: '50:50 균형 가정에서도 F1-score 0.6 목표를 달성하지 못했습니다.',\n    f1_score: $json.metrics_50_50.f1_score,\n    recall: $json.metrics_50_50.recall,\n    precision: $json.metrics_50_50.precision,\n    caution: $json.caveat\n  }\n}];"
+      },
+      "id": "82d244ad-89b8-40a9-8aa6-915688781005",
+      "name": "Build Not Achieved Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build 50-50 Experiment Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build 50-50 Experiment Result": {
+      "main": [
+        [
+          {
+            "node": "IF F1 Goal Achieved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF F1 Goal Achieved": {
+      "main": [
+        [
+          {
+            "node": "Build Achieved Report Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Not Achieved Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-05-20T00:00:00.000Z",
+  "versionId": "91568878-1000-4000-9000-505000505000",
+  "active": false
+}

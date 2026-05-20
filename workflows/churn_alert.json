@@ -1,5 +1,5 @@
 {
-  "name": "ChurnRadar B2B Alert Workflow",
+  "name": "ChurnRadar Automation - 4 AI Agents FastAPI Slack Gmail Sheets",
   "nodes": [
     {
       "parameters": {
@@ -12,127 +12,267 @@
           ]
         }
       },
+      "id": "660eda3d-d92f-47eb-893e-7c3de433d6e3",
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [ 0, 300 ]
+      "position": [
+        -1168,
+        704
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/predict",
+        "url": "http://host.docker.internal:8000/predict",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            { "name": "customer_id", "value": "CUST_DEMO_001" },
-            { "name": "total_subs", "value": "3" },
-            { "name": "avg_mobile_revenue", "value": "50.0" },
-            { "name": "avg_fix_revenue", "value": "20.0" },
-            { "name": "total_revenue", "value": "70.0" },
-            { "name": "arpu", "value": "23.3" },
-            { "name": "active_subscribers", "value": "2" },
-            { "name": "not_active_subscribers", "value": "1" },
-            { "name": "crm_segment", "value": "VIP" },
-            { "name": "effective_segment", "value": "Business" }
-          ]
-        },
-        "options": {}
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customer_id\": \"B2B-HIGH-TEST-001\",\n  \"total_subs\": 5,\n  \"avg_mobile_revenue\": 3.0,\n  \"avg_fix_revenue\": 2.0,\n  \"total_revenue\": 5.0,\n  \"arpu\": 1.0,\n  \"active_subscribers\": 0,\n  \"not_active_subscribers\": 4,\n  \"suspended_subscribers\": 1,\n  \"crm_segment\": \"VIP\",\n  \"effective_segment\": \"Business\",\n  \"history_arpu\": [80.0, 65.0, 42.0, 20.0, 1.0],\n  \"last_alert_time\": \"\",\n  \"previous_churn_probability\": 0.2,\n  \"previous_risk_level\": \"Low\",\n  \"response_status\": \"미대응\",\n  \"is_vip_customer\": true,\n  \"is_high_revenue_customer\": true\n}",
+        "options": {
+          "timeout": 30000
+        }
       },
-      "name": "HTTP Request",
+      "id": "58ea2494-662d-4c8f-8f45-9095465a38ed",
+      "name": "FastAPI - /predict",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [ 200, 300 ]
+      "position": [
+        -912,
+        704
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
             {
-              "value1": "={{ $json.churn_prediction }}",
+              "value1": "={{ $json.alert_required }}",
               "value2": true
             }
           ]
         }
       },
-      "name": "IF Churn Prediction",
+      "id": "09390094-e5d3-4372-8853-f70d2d1fe8a4",
+      "name": "IF - Alert Required",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [ 400, 300 ]
+      "position": [
+        -640,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=FastAPI 예측 결과를 바탕으로 ChurnRadar ① 분석가(Analyst) 역할을 수행하세요.\n\n[예측 결과 JSON]\n{{ JSON.stringify($json) }}\n\n[작성 요구]\n- 한국어로 작성\n- 고객 ID, 이탈 확률, 위험 등급을 먼저 요약\n- SHAP/3D Tensor 관점의 이탈 원인 진단을 작성\n- Energy, Momentum, Acceleration, history_arpu가 있으면 이를 근거로 설명\n- 과장하지 말고 데이터에 없는 값은 \"추정\"이라고 표현\n- 출력은 6줄 이내의 보고서 형태",
+        "options": {
+          "systemMessage": "당신은 통신사 B2B 고객 이탈 예측 시스템 ChurnRadar의 분석가입니다. 모델 출력값을 근거로 이탈 원인을 진단합니다."
+        }
+      },
+      "id": "e71cf7db-4262-41c8-b546-8103d76e40d5",
+      "name": "AI Agent 1 - Analyst",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -384,
+        592
+      ]
     },
     {
       "parameters": {
         "model": "gpt-4o-mini",
-        "messages": {
-          "message": [
-            {
-              "role": "system",
-              "content": "당신은 B2B 통신사 이탈 방어 전문가입니다. 데이터(고객ID, 확률, 위험도, 손실액)를 보고 영업 담당자가 즉각 조치할 수 있는 짧은 대응 시나리오를 작성해주세요."
-            },
-            {
-              "role": "user",
-              "content": "=고객ID: {{ $json.customer_id }}\n이탈 확률: {{ $json.churn_probability }}\n위험도: {{ $json.risk_level }}\n예상 손실액: {{ $json.expected_revenue_loss }} BGN"
-            }
-          ]
+        "options": {
+          "temperature": 0.2
         }
       },
-      "name": "OpenAI Chat",
-      "type": "n8n-nodes-base.openAi",
-      "typeVersion": 1,
-      "position": [ 600, 280 ]
+      "id": "1e4a981f-ddb2-4a06-a7c2-74c5392f7afd",
+      "name": "OpenAI Chat Model - Analyst",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -384,
+        800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ljwrykb3Xb8t41sf",
+          "name": "OpenAi account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $('HTTP Request').item.json.risk_level }}",
-              "value2": "HIGH"
-            }
-          ]
+        "promptType": "define",
+        "text": "=다음 정보를 바탕으로 ChurnRadar ② 해결사(Strategist) 역할을 수행하세요.\n\n[FastAPI 예측 결과]\n{{ JSON.stringify($('FastAPI - /predict').item.json) }}\n\n[분석가 보고서]\n{{ $('AI Agent 1 - Analyst').item.json.output }}\n\n[작성 요구]\n- 한국어로 작성\n- 방어 전략을 구체적으로 제안\n- What-if Simulation API를 사용한 것처럼 할인/상담/계약 조건 조정 시나리오를 제시\n- B2B 고객 매출 방어 관점에서 근거를 설명\n- 출력은 실행 가능한 전략 보고서 형태로 6줄 이내",
+        "options": {
+          "systemMessage": "당신은 통신사 B2B 고객 이탈 방어 전략가입니다. 분석 결과를 바탕으로 비용 대비 효과가 높은 방어 액션을 설계합니다."
         }
       },
-      "name": "IF Risk Level HIGH",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [ 800, 280 ]
+      "id": "80a39a49-8ce9-4d01-a530-4d1b0679b846",
+      "name": "AI Agent 2 - Strategist",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -128,
+        592
+      ]
     },
     {
       "parameters": {
-        "channel": "#churn-alert-high",
-        "text": "=🚨 [HIGH RISK] 이탈 경보\n\n고객 ID: {{ $('HTTP Request').item.json.customer_id }}\n이탈 확률: {{ $('HTTP Request').item.json.churn_probability }}\n예상 손실액: {{ $('HTTP Request').item.json.expected_revenue_loss }} BGN\n\n💡 GPT 대응 시나리오:\n{{ $json.choices[0].message.content }}"
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.2
+        }
       },
-      "name": "Slack (HIGH)",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.1,
-      "position": [ 1000, 180 ]
+      "id": "c89a8f80-4cc5-4d95-8741-a5e7e184ad28",
+      "name": "OpenAI Chat Model - Strategist",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ljwrykb3Xb8t41sf",
+          "name": "OpenAi account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "channel": "#churn-alert",
-        "text": "=⚠️ [MEDIUM/LOW RISK] 이탈 경보\n\n고객 ID: {{ $('HTTP Request').item.json.customer_id }}\n이탈 확률: {{ $('HTTP Request').item.json.churn_probability }}\n\n💡 GPT 대응 시나리오:\n{{ $json.choices[0].message.content }}"
+        "promptType": "define",
+        "text": "=다음 정보를 바탕으로 ChurnRadar ③ 작가(Communicator) 역할을 수행하세요.\n\n[FastAPI 예측 결과]\n{{ JSON.stringify($('FastAPI - /predict').item.json) }}\n\n[분석가 보고서]\n{{ $('AI Agent 1 - Analyst').item.json.output }}\n\n[해결사 전략]\n{{ $('AI Agent 2 - Strategist').item.json.output }}\n\n[작성 요구]\n아래 3개 섹션을 반드시 포함하세요.\n1) [Slack 긴급 알림] : 담당자가 바로 볼 수 있는 짧은 알림\n2) [영업 대응 스크립트] : 고객에게 연락할 때 사용할 문장\n3) [Gmail 본문] : 담당자에게 보낼 이메일 본문\n\n한국어로 작성하고, 고객 ID/위험등급/이탈확률/예상 매출 손실을 포함하세요.",
+        "options": {
+          "systemMessage": "당신은 복잡한 AI 예측 결과를 현업 담당자가 바로 쓸 수 있는 Slack, Gmail, 영업 스크립트로 바꾸는 비즈니스 커뮤니케이터입니다."
+        }
       },
-      "name": "Slack (FALSE)",
+      "id": "55ef47c9-6348-469e-9514-5d95f9d74513",
+      "name": "AI Agent 3 - Communicator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        128,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "ff336e12-0746-4e80-9d23-fa8e26138325",
+      "name": "OpenAI Chat Model - Communicator",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        128,
+        800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ljwrykb3Xb8t41sf",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=다음 정보를 바탕으로 ChurnRadar ④ 감사관(Auditor) 역할을 수행하세요.\n\n[FastAPI 예측 결과]\n{{ JSON.stringify($('FastAPI - /predict').item.json) }}\n\n[분석가 보고서]\n{{ $('AI Agent 1 - Analyst').item.json.output }}\n\n[해결사 전략]\n{{ $('AI Agent 2 - Strategist').item.json.output }}\n\n[작가 메시지]\n{{ $('AI Agent 3 - Communicator').item.json.output }}\n\n[작성 요구]\n- 전체 파이프라인 무결성 검증 결과 작성\n- Google Sheets에 저장해야 할 추적 항목을 명시\n- response_status, actual_churn, retention_success를 현업 피드백 루프 컬럼으로 언급\n- 출력은 5줄 이내",
+        "options": {
+          "systemMessage": "당신은 ChurnRadar 자동화 파이프라인의 감사관입니다. 예측, 알림, 로그, 피드백 루프의 무결성을 점검합니다."
+        }
+      },
+      "id": "6b672fee-ea18-4fe0-bcaa-af7ab11e9881",
+      "name": "AI Agent 4 - Auditor",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        400,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "23f215ef-32d6-400b-bff1-632e6186ebf2",
+      "name": "OpenAI Chat Model - Auditor",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ljwrykb3Xb8t41sf",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0AJWELGU2Z"
+        },
+        "text": "=🚨 [ChurnRadar] AI Agent 긴급 이탈 알림\n\n고객 ID: {{ $('FastAPI - /predict').item.json.customer_id }}\n위험 등급: {{ $('FastAPI - /predict').item.json.risk_level }}\n이탈 확률: {{ $('FastAPI - /predict').item.json.churn_probability }}\n예상 매출 손실: {{ $('FastAPI - /predict').item.json.expected_revenue_loss }}\n\n{{ $('AI Agent 3 - Communicator').item.json.output }}\n\n---\n감사관 검증:\n{{ $('AI Agent 4 - Auditor').item.json.output }}",
+        "otherOptions": {}
+      },
+      "id": "1a35a713-360c-492e-b57a-280764a51390",
+      "name": "Slack - Emergency Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.1,
-      "position": [ 1000, 380 ]
+      "position": [
+        656,
+        464
+      ],
+      "webhookId": "ecc6a7d3-b8e2-4c97-9d9a-3a491b67fcf8",
+      "credentials": {
+        "slackApi": {
+          "id": "trv0OUeJFhbEJDuw",
+          "name": "Slack account"
+        }
+      }
     },
     {
       "parameters": {
         "sendTo": "sales@baza-telecom.com",
-        "subject": "=🚨 [긴급] 핵심 고객 이탈 경보 ({{ $('HTTP Request').item.json.customer_id }})",
-        "message": "=담당자님,\n\n아래 고객의 이탈 위험이 매우 높습니다. 즉각적인 개입이 필요합니다.\n\n고객 ID: {{ $('HTTP Request').item.json.customer_id }}\n이탈 확률: {{ $('HTTP Request').item.json.churn_probability }}\n예상 매출 손실: {{ $('HTTP Request').item.json.expected_revenue_loss }} BGN\n\n[전문가 제언]\n{{ $('OpenAI Chat').item.json.choices[0].message.content }}\n\n조치 후 Google Sheets에 결과를 기록해주세요."
+        "subject": "=[ChurnRadar] {{ $('FastAPI - /predict').item.json.risk_level }} 고객 이탈 위험 알림 - {{ $('FastAPI - /predict').item.json.customer_id }}",
+        "message": "=담당자님,\n\nChurnRadar AI Agent가 이탈 위험 고객을 감지했습니다.\n\n고객 ID: {{ $('FastAPI - /predict').item.json.customer_id }}\n위험 등급: {{ $('FastAPI - /predict').item.json.risk_level }}\n이탈 확률: {{ $('FastAPI - /predict').item.json.churn_probability }}\n예상 매출 손실: {{ $('FastAPI - /predict').item.json.expected_revenue_loss }}\n\n[분석가 보고서]\n{{ $('AI Agent 1 - Analyst').item.json.output }}\n\n[해결사 전략]\n{{ $('AI Agent 2 - Strategist').item.json.output }}\n\n[작가 메시지]\n{{ $('AI Agent 3 - Communicator').item.json.output }}\n\n[감사관 검증]\n{{ $('AI Agent 4 - Auditor').item.json.output }}\n\n대응 후 Google Sheets의 response_status, actual_churn, retention_success 컬럼을 업데이트해주세요.",
+        "options": {}
       },
-      "name": "Gmail (HIGH)",
+      "id": "77087b84-d7f9-4881-9f3d-b7e4acd6bf6f",
+      "name": "Gmail - Sales Script",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2,
-      "position": [ 1200, 80 ]
+      "position": [
+        928,
+        464
+      ],
+      "webhookId": "59887d18-7729-4481-8ef7-ffd91eb8d8c2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "w70lrHnYm3kgbTP1",
+          "name": "Gmail account 2"
+        }
+      }
     },
     {
       "parameters": {
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "INSERT_GOOGLE_SHEET_ID_HERE",
+          "value": "1qEfF7T7Hfl7SVDGCEGg_-UVoo96MK_qWIs3-rBKIVOc",
           "mode": "id"
         },
         "sheetName": {
@@ -143,50 +283,718 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "timestamp": "={{ $now }}",
-            "customer_id": "={{ $('HTTP Request').item.json.customer_id }}",
-            "churn_probability": "={{ $('HTTP Request').item.json.churn_probability }}",
-            "risk_level": "={{ $('HTTP Request').item.json.risk_level }}",
-            "expected_revenue_loss": "={{ $('HTTP Request').item.json.expected_revenue_loss }}",
-            "gpt_message": "={{ $('OpenAI Chat').item.json.choices[0].message.content }}",
-            "action_taken": "",
-            "result": ""
-          }
-        }
+            "created_at": "={{ new Date().toISOString() }}",
+            "customer_id": "={{ $('FastAPI - /predict').item.json.customer_id }}",
+            "alert_required": "={{ $('FastAPI - /predict').item.json.alert_required }}",
+            "risk_level": "={{ $('FastAPI - /predict').item.json.risk_level }}",
+            "churn_probability": "={{ $('FastAPI - /predict').item.json.churn_probability }}",
+            "prediction_threshold": "={{ $('FastAPI - /predict').item.json.prediction_threshold }}",
+            "xgb_probability": "={{ $('FastAPI - /predict').item.json.xgb_probability }}",
+            "tcn_probability": "={{ $('FastAPI - /predict').item.json.tcn_probability }}",
+            "ts_probability": "={{ $('FastAPI - /predict').item.json.ts_probability }}",
+            "expected_revenue_loss": "={{ $('FastAPI - /predict').item.json.expected_revenue_loss }}",
+            "suppress_reason": "={{ $('FastAPI - /predict').item.json.suppress_reason || '' }}",
+            "analyst_report": "={{ $('AI Agent 1 - Analyst').item.json.output }}",
+            "defense_strategy": "={{ $('AI Agent 2 - Strategist').item.json.output }}",
+            "sales_script": "={{ $('AI Agent 3 - Communicator').item.json.output }}",
+            "slack_message": "={{ $('AI Agent 3 - Communicator').item.json.output }}",
+            "email_subject": "=[ChurnRadar] {{ $('FastAPI - /predict').item.json.risk_level }} 고객 이탈 위험 알림 - {{ $('FastAPI - /predict').item.json.customer_id }}",
+            "audit_report": "={{ $('AI Agent 4 - Auditor').item.json.output }}",
+            "tracking_report": "=AI Agent 기반 예측/알림/로그 완료. response_status, actual_churn, retention_success를 추후 업데이트 필요.",
+            "response_status": "",
+            "actual_churn": "",
+            "retention_success": "",
+            "notes": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer_id",
+              "displayName": "customer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_required",
+              "displayName": "alert_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_level",
+              "displayName": "risk_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "churn_probability",
+              "displayName": "churn_probability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prediction_threshold",
+              "displayName": "prediction_threshold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "xgb_probability",
+              "displayName": "xgb_probability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tcn_probability",
+              "displayName": "tcn_probability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ts_probability",
+              "displayName": "ts_probability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "expected_revenue_loss",
+              "displayName": "expected_revenue_loss",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "suppress_reason",
+              "displayName": "suppress_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analyst_report",
+              "displayName": "analyst_report",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "defense_strategy",
+              "displayName": "defense_strategy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sales_script",
+              "displayName": "sales_script",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "slack_message",
+              "displayName": "slack_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email_subject",
+              "displayName": "email_subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "audit_report",
+              "displayName": "audit_report",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tracking_report",
+              "displayName": "tracking_report",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "response_status",
+              "displayName": "response_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "actual_churn",
+              "displayName": "actual_churn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retention_success",
+              "displayName": "retention_success",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
       },
-      "name": "Google Sheets",
+      "id": "9a43a453-647e-48b3-9dff-c8cdd7097369",
+      "name": "Google Sheets - Append Agent Log",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [ 1200, 280 ]
+      "position": [
+        1184,
+        464
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "W9JM23Zjp4yeP53j",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=FastAPI 예측 결과를 바탕으로 ChurnRadar ④ 감사관(Auditor) No Alert 로그를 작성하세요.\n\n[예측 결과 JSON]\n{{ JSON.stringify($json) }}\n\n[작성 요구]\n- alert_required=false인 이유를 요약\n- Slack/Gmail 발송 없이 Google Sheets에만 저장한다는 점을 명시\n- 다음 모니터링 주기에 재평가한다고 작성\n- 한국어 4줄 이내",
+        "options": {
+          "systemMessage": "당신은 ChurnRadar 파이프라인 감사관입니다. 알림이 필요 없는 고객의 로그 저장 사유를 기록합니다."
+        }
+      },
+      "id": "8eb57c1c-d996-482c-a05d-94c73d7d74e8",
+      "name": "AI Agent 4 - Auditor No Alert",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -432,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "ddba15f5-6fc2-43fe-8c76-697b3719a1e4",
+      "name": "OpenAI Chat Model - No Alert",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -432,
+        1136
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ljwrykb3Xb8t41sf",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1qEfF7T7Hfl7SVDGCEGg_-UVoo96MK_qWIs3-rBKIVOc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "churn_log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "created_at": "={{ new Date().toISOString() }}",
+            "customer_id": "={{ $('FastAPI - /predict').item.json.customer_id }}",
+            "alert_required": "={{ $('FastAPI - /predict').item.json.alert_required }}",
+            "risk_level": "={{ $('FastAPI - /predict').item.json.risk_level }}",
+            "churn_probability": "={{ $('FastAPI - /predict').item.json.churn_probability }}",
+            "prediction_threshold": "={{ $('FastAPI - /predict').item.json.prediction_threshold }}",
+            "xgb_probability": "={{ $('FastAPI - /predict').item.json.xgb_probability }}",
+            "tcn_probability": "={{ $('FastAPI - /predict').item.json.tcn_probability }}",
+            "ts_probability": "={{ $('FastAPI - /predict').item.json.ts_probability }}",
+            "expected_revenue_loss": "={{ $('FastAPI - /predict').item.json.expected_revenue_loss }}",
+            "suppress_reason": "={{ $('FastAPI - /predict').item.json.suppress_reason || '' }}",
+            "analyst_report": "",
+            "defense_strategy": "",
+            "sales_script": "",
+            "slack_message": "",
+            "email_subject": "",
+            "audit_report": "={{ $('AI Agent 4 - Auditor No Alert').item.json.output }}",
+            "tracking_report": "=No Alert branch: Slack/Gmail 미발송, Google Sheets 로그만 저장.",
+            "response_status": "",
+            "actual_churn": "",
+            "retention_success": "",
+            "notes": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer_id",
+              "displayName": "customer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_required",
+              "displayName": "alert_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_level",
+              "displayName": "risk_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "churn_probability",
+              "displayName": "churn_probability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prediction_threshold",
+              "displayName": "prediction_threshold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "xgb_probability",
+              "displayName": "xgb_probability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tcn_probability",
+              "displayName": "tcn_probability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ts_probability",
+              "displayName": "ts_probability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "expected_revenue_loss",
+              "displayName": "expected_revenue_loss",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "suppress_reason",
+              "displayName": "suppress_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analyst_report",
+              "displayName": "analyst_report",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "defense_strategy",
+              "displayName": "defense_strategy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sales_script",
+              "displayName": "sales_script",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "slack_message",
+              "displayName": "slack_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email_subject",
+              "displayName": "email_subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "audit_report",
+              "displayName": "audit_report",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tracking_report",
+              "displayName": "tracking_report",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "response_status",
+              "displayName": "response_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "actual_churn",
+              "displayName": "actual_churn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retention_success",
+              "displayName": "retention_success",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a4bfdc9f-236f-4ab5-96cf-48b660500bfe",
+      "name": "Google Sheets - Log No Alert",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -96,
+        944
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "W9JM23Zjp4yeP53j",
+          "name": "Google Sheets account 3"
+        }
+      }
     }
   ],
   "connections": {
     "Schedule Trigger": {
-      "main": [ [ { "node": "HTTP Request", "type": "main", "index": 0 } ] ]
-    },
-    "HTTP Request": {
-      "main": [ [ { "node": "IF Churn Prediction", "type": "main", "index": 0 } ] ]
-    },
-    "IF Churn Prediction": {
-      "main": [ [ { "node": "OpenAI Chat", "type": "main", "index": 0 } ] ]
-    },
-    "OpenAI Chat": {
-      "main": [ [ { "node": "IF Risk Level HIGH", "type": "main", "index": 0 } ] ]
-    },
-    "IF Risk Level HIGH": {
       "main": [
         [
-          { "node": "Slack (HIGH)", "type": "main", "index": 0 },
-          { "node": "Google Sheets", "type": "main", "index": 0 }
-        ],
-        [
-          { "node": "Slack (FALSE)", "type": "main", "index": 0 },
-          { "node": "Google Sheets", "type": "main", "index": 0 }
+          {
+            "node": "FastAPI - /predict",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Slack (HIGH)": {
-      "main": [ [ { "node": "Gmail (HIGH)", "type": "main", "index": 0 } ] ]
+    "FastAPI - /predict": {
+      "main": [
+        [
+          {
+            "node": "IF - Alert Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Alert Required": {
+      "main": [
+        [
+          {
+            "node": "AI Agent 1 - Analyst",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent 4 - Auditor No Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent 1 - Analyst": {
+      "main": [
+        [
+          {
+            "node": "AI Agent 2 - Strategist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Analyst": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent 1 - Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent 2 - Strategist": {
+      "main": [
+        [
+          {
+            "node": "AI Agent 3 - Communicator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Strategist": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent 2 - Strategist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent 3 - Communicator": {
+      "main": [
+        [
+          {
+            "node": "AI Agent 4 - Auditor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Communicator": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent 3 - Communicator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent 4 - Auditor": {
+      "main": [
+        [
+          {
+            "node": "Slack - Emergency Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail - Sales Script",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Append Agent Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Auditor": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent 4 - Auditor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent 4 - Auditor No Alert": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Log No Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - No Alert": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent 4 - Auditor No Alert",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
     }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4f3d0f79f341afa6b5c253f4f20aca18df945c353a0776cf0946aba1b0889c22"
   }
 }

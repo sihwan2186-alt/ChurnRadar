@@ -1,9 +1,26 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TypedDict
 
 from api.alert_fatigue import is_response_resolved
+
+
+class RetentionROIDict(TypedDict):
+    customer_id: str
+    churn_probability: float
+    risk_level: str
+    alert_sent: bool
+    action_type: str
+    response_status: Optional[str]
+    actual_churn: Optional[bool]
+    retention_success: bool
+    expected_revenue_loss: float
+    saved_revenue: float
+    retention_cost: float
+    net_benefit: float
+    roi: Optional[float]
+    notes: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -23,7 +40,7 @@ class RetentionROI:
     roi: Optional[float]
     notes: Optional[str] = None
 
-    def to_dict(self) -> dict[str, object]:
+    def to_dict(self) -> RetentionROIDict:
         return {
             "customer_id": self.customer_id,
             "churn_probability": self.churn_probability,
