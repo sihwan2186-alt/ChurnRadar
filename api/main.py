@@ -1,11 +1,12 @@
 import logging
 import os
+import json
 import time
 from uuid import uuid4
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 from typing import Dict, Any, Mapping
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.alert_fatigue import evaluate_alert_fatigue
@@ -80,6 +81,23 @@ def _arpu_dropped(history_arpu: Any) -> bool:
     return first_arpu > 0 and last_arpu / first_arpu <= 0.4
 
 
+def _coerce_mapping_payload(payload: Any) -> dict[str, Any]:
+    if isinstance(payload, Mapping):
+        return dict(payload)
+    if isinstance(payload, str):
+        try:
+            decoded = json.loads(payload)
+        except json.JSONDecodeError:
+            return {"raw_body": payload}
+        if isinstance(decoded, Mapping):
+            return dict(decoded)
+        if isinstance(decoded, list) and decoded and isinstance(decoded[0], Mapping):
+            return dict(decoded[0])
+    if isinstance(payload, list) and payload and isinstance(payload[0], Mapping):
+        return dict(payload[0])
+    return {}
+
+
 def build_churn_prediction_response(data: Mapping[str, Any]) -> ChurnPrediction:
     customer_id: str = _as_str(data.get("customer_id"))
     active_subscribers: int = _as_int(data.get("active_subscribers"))
@@ -129,7 +147,12 @@ def build_churn_prediction_response(data: Mapping[str, Any]) -> ChurnPrediction:
 
 
 @app.post("/predict", response_model=ChurnPrediction)
-def predict_churn_endpoint(data: Dict[str, Any]) -> ChurnPrediction:
+async def predict_churn_endpoint(request: Request) -> ChurnPrediction:
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    data = _coerce_mapping_payload(payload)
     logger.info(f"Predict requested. Customer ID: {data.get('customer_id', '')}")
     return build_churn_prediction_response(data)
 
