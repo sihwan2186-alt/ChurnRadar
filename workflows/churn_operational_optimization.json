@@ -1,0 +1,143 @@
+{
+  "name": "ChurnRadar Operational Optimization Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/predict/batch",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"batch_id\": \"batch-{{ $now }}\",\n  \"customers\": [\n    {\n      \"customer_id\": \"B2B-1023\",\n      \"total_subs\": 3,\n      \"avg_mobile_revenue\": 50.0,\n      \"avg_fix_revenue\": 20.0,\n      \"total_revenue\": 70.0,\n      \"arpu\": 23.3,\n      \"active_subscribers\": 2,\n      \"not_active_subscribers\": 1,\n      \"crm_segment\": \"VIP\",\n      \"effective_segment\": \"Business\",\n      \"is_vip_customer\": true\n    },\n    {\n      \"customer_id\": \"B2B-2081\",\n      \"total_subs\": 2,\n      \"avg_mobile_revenue\": 24.0,\n      \"avg_fix_revenue\": 0.0,\n      \"total_revenue\": 24.0,\n      \"arpu\": 12.0,\n      \"active_subscribers\": 1,\n      \"not_active_subscribers\": 1,\n      \"crm_segment\": \"Bronze\",\n      \"effective_segment\": \"SOHO\"\n    }\n  ]\n}"
+      },
+      "name": "FastAPI Batch Prediction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "predictions",
+        "options": {}
+      },
+      "name": "Split Predictions",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.alert_required }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "IF Alert Required",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [720, 220]
+    },
+    {
+      "parameters": {
+        "channel": "#churn-alert",
+        "text": "=[{{ $json.risk_level }}] Churn alert\nCustomer ID: {{ $json.customer_id }}\nProbability: {{ $json.churn_probability }}\nChannel: {{ $json.alert_channel }}"
+      },
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [960, 160]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "INSERT_GOOGLE_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "churn_log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "customer_id": "={{ $json.customer_id }}",
+            "prediction_time": "={{ $now }}",
+            "churn_probability": "={{ $json.churn_probability }}",
+            "risk_level": "={{ $json.risk_level }}",
+            "alert_sent": "={{ $json.alert_required }}",
+            "alert_channel": "={{ $json.alert_channel }}",
+            "expected_revenue_loss": "={{ $json.expected_revenue_loss }}",
+            "response_status": "",
+            "actual_churn": "",
+            "retention_success": "",
+            "saved_revenue": "",
+            "net_benefit": "",
+            "roi": "",
+            "notes": "={{ $json.suppress_reason || '' }}"
+          }
+        }
+      },
+      "name": "Google Sheets - Append Prediction Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [960, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/retention/roi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customer_id\": \"{{ $json.customer_id }}\",\n  \"churn_probability\": {{ $json.churn_probability }},\n  \"risk_level\": \"{{ $json.risk_level }}\",\n  \"alert_sent\": {{ $json.alert_required }},\n  \"expected_revenue_loss\": {{ $json.expected_revenue_loss || 0 }},\n  \"action_type\": \"follow_up\",\n  \"consulting_cost\": 30,\n  \"response_status\": \"completed\",\n  \"actual_churn\": false\n}"
+      },
+      "name": "FastAPI Retention ROI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1200, 420]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "FastAPI Batch Prediction", "type": "main", "index": 0 }]]
+    },
+    "FastAPI Batch Prediction": {
+      "main": [[{ "node": "Split Predictions", "type": "main", "index": 0 }]]
+    },
+    "Split Predictions": {
+      "main": [
+        [
+          { "node": "IF Alert Required", "type": "main", "index": 0 },
+          { "node": "Google Sheets - Append Prediction Log", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF Alert Required": {
+      "main": [[{ "node": "Slack Alert", "type": "main", "index": 0 }]]
+    },
+    "Google Sheets - Append Prediction Log": {
+      "main": [[{ "node": "FastAPI Retention ROI", "type": "main", "index": 0 }]]
+    }
+  }
+}

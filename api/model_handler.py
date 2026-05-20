@@ -130,8 +130,15 @@ def _prepare_xgb_input(data: Dict[str, Any]) -> pd.DataFrame:
     total_subs = max(data["total_subs"], 1)  # 0으로 나누기 방지
     active_ratio = data["active_subscribers"] / total_subs
     inactive_ratio = data["not_active_subscribers"] / total_subs
+    suspended_subscribers = float(data.get("suspended_subscribers", 0.0) or 0.0)
+    suspended_ratio = suspended_subscribers / total_subs
     total_rev = data["total_revenue"] if data["total_revenue"] != 0 else 1.0
     mobile_revenue_ratio = data["avg_mobile_revenue"] / total_rev
+    revenue_per_active = data["total_revenue"] / max(data["active_subscribers"], 1)
+    inactive_x_revenue = inactive_ratio * data["total_revenue"]
+    revenue_balance = min(data["avg_mobile_revenue"], data["avg_fix_revenue"]) / (
+        max(data["avg_mobile_revenue"], data["avg_fix_revenue"]) + 1e-5
+    )
 
     # 학습 피처와 완전히 일치 (tune_xgboost.py NUMERIC_FEATURES + CAT_FEATURES 순서)
     row = {
@@ -144,6 +151,10 @@ def _prepare_xgb_input(data: Dict[str, Any]) -> pd.DataFrame:
         "Not_Active_subscribers": data["not_active_subscribers"],
         "Mobile_Revenue_Ratio":   mobile_revenue_ratio,
         "Inactive_Ratio":         inactive_ratio,
+        "Suspended_Ratio":        suspended_ratio,
+        "Revenue_per_Active_Sub": revenue_per_active,
+        "Inactive_x_Revenue":     inactive_x_revenue,
+        "Revenue_Balance":        revenue_balance,
         "CRM_PID_Value_Segment":  data["crm_segment"],
         "EffectiveSegment":       data["effective_segment"],
     }

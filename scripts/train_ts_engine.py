@@ -63,7 +63,7 @@ def train_engine(
 
     # ── 1. 데이터 로드 ───────────────────────────────────────────────────
     dataset = ChurnTimeSeriesDataset(parquet_path, max_seq_len=30, target_col="is_churn")
-    X_np = dataset.X          # (N, 30, 3) float32
+    X_np = dataset.X          # (N, 30, F) float32
     y_np = dataset.y          # (N,)       float32
     l_np = dataset.lens       # (N,)       int64
 
@@ -115,7 +115,7 @@ def train_engine(
     val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=0)
 
     # ── 5. 모델 / 손실함수 / 옵티마이저 ─────────────────────────────────
-    model = ChurnTransformer(input_size=3, d_model=64, nhead=4, num_layers=2).to(device)
+    model = ChurnTransformer(input_size=F, d_model=64, nhead=4, num_layers=2).to(device)
     n_pos = float(y_train.sum())
     n_neg = float(len(y_train)) - n_pos
     pos_weight_val = (n_neg / (n_pos + 1e-5)) * weight_scale

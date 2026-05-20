@@ -12,6 +12,7 @@ class CustomerData(BaseModel):
     arpu: float
     active_subscribers: int
     not_active_subscribers: float
+    suspended_subscribers: float = 0.0
     crm_segment: str = "Unknown"
     effective_segment: str = "Unknown"
     history_arpu: Optional[List[float]] = None
@@ -46,6 +47,19 @@ class ChurnPrediction(BaseModel):
     log_required: bool = True
 
 
+class BatchPredictionRequest(BaseModel):
+    batch_id: Optional[str] = None
+    customers: List[CustomerData] = Field(min_length=1)
+
+
+class BatchPredictionResponse(BaseModel):
+    batch_id: str
+    total_customers: int
+    alert_required_count: int
+    elapsed_ms: float
+    predictions: List[ChurnPrediction]
+
+
 class AlertControlRequest(BaseModel):
     customer_id: str
     churn_probability: float = Field(ge=0.0, le=1.0)
@@ -73,3 +87,37 @@ class AlertControlResponse(BaseModel):
     alert_channel: str
     suppress_reason: Optional[str] = None
     log_required: bool = True
+
+
+class RetentionROIRequest(BaseModel):
+    customer_id: str
+    churn_probability: float = Field(ge=0.0, le=1.0)
+    risk_level: str
+    alert_sent: bool = False
+    expected_revenue_loss: float = Field(default=0.0, ge=0.0)
+    action_type: str = "none"
+    action_cost: Optional[float] = Field(default=None, ge=0.0)
+    coupon_cost: float = Field(default=0.0, ge=0.0)
+    discount_cost: float = Field(default=0.0, ge=0.0)
+    consulting_cost: float = Field(default=0.0, ge=0.0)
+    response_status: Optional[str] = None
+    actual_churn: Optional[bool] = None
+    retention_success: Optional[bool] = None
+    notes: Optional[str] = None
+
+
+class RetentionROIResponse(BaseModel):
+    customer_id: str
+    churn_probability: float
+    risk_level: str
+    alert_sent: bool
+    action_type: str
+    response_status: Optional[str] = None
+    actual_churn: Optional[bool] = None
+    retention_success: bool
+    expected_revenue_loss: float
+    saved_revenue: float
+    retention_cost: float
+    net_benefit: float
+    roi: Optional[float]
+    notes: Optional[str] = None

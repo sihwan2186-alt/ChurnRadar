@@ -28,7 +28,8 @@ from src.utils.helpers import model_path, plot_path, raw_data_path, resolve_inpu
 NUMERIC_FEATURES = [
     "Total_SUBs", "AvgMobileRevenue", "AvgFIXRevenue",
     "TotalRevenue", "ARPU", "Active_Ratio", "Not_Active_subscribers",
-    "Mobile_Revenue_Ratio", "Inactive_Ratio",
+    "Mobile_Revenue_Ratio", "Inactive_Ratio", "Suspended_Ratio",
+    "Revenue_per_Active_Sub", "Inactive_x_Revenue", "Revenue_Balance",
 ]
 CAT_FEATURES = ["CRM_PID_Value_Segment", "EffectiveSegment"]
 
@@ -44,6 +45,18 @@ def load_sample(path: Path, n: int = 500) -> pd.DataFrame:
     df["Not_Active_subscribers"] = df["Not_Active_subscribers"].fillna(0.0)
     df["Mobile_Revenue_Ratio"] = (df["AvgMobileRevenue"] / df["TotalRevenue"].replace(0, np.nan)).fillna(0.0).clip(0, 1)
     df["Inactive_Ratio"] = (df["Not_Active_subscribers"] / df["Total_SUBs"].replace(0, np.nan)).fillna(0.0).clip(0, 1)
+    if "Suspended_subscribers" not in df.columns:
+        df["Suspended_subscribers"] = 0.0
+    df["Suspended_subscribers"] = df["Suspended_subscribers"].fillna(0.0)
+    df["Suspended_Ratio"] = (df["Suspended_subscribers"] / df["Total_SUBs"].replace(0, np.nan)).fillna(0.0).clip(0, 1)
+    df["Revenue_per_Active_Sub"] = (
+        df["TotalRevenue"] / df["Active_subscribers"].replace(0, np.nan)
+    ).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+    df["Inactive_x_Revenue"] = df["Inactive_Ratio"] * df["TotalRevenue"].fillna(0.0)
+    revenue_pair = df[["AvgMobileRevenue", "AvgFIXRevenue"]].fillna(0.0)
+    df["Revenue_Balance"] = (
+        revenue_pair.min(axis=1) / (revenue_pair.max(axis=1) + 1e-5)
+    ).replace([np.inf, -np.inf], np.nan).fillna(0.0).clip(0, 1)
 
     for col in CAT_FEATURES:
         df[col] = df[col].fillna("Unknown")

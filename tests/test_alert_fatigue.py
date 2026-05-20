@@ -50,6 +50,31 @@ class AlertFatigueTest(unittest.TestCase):
         self.assertEqual(decision.alert_channel, "Slack")
         self.assertIsNone(decision.suppress_reason)
 
+    def test_completed_response_blocks_duplicate_alert(self):
+        now = datetime(2026, 5, 14, 9, 0, tzinfo=timezone.utc)
+
+        decision = evaluate_alert_fatigue(
+            risk_level="Critical",
+            churn_probability=0.9,
+            last_alert_time=(now - timedelta(hours=26)).isoformat(),
+            response_status="대응완료",
+            now=now,
+        )
+
+        self.assertFalse(decision.alert_required)
+        self.assertEqual(decision.alert_channel, "None")
+        self.assertIn("대응이 완료", decision.suppress_reason)
+
+    def test_priority_high_risk_customer_uses_slack_and_gmail(self):
+        decision = evaluate_alert_fatigue(
+            risk_level="High",
+            churn_probability=0.72,
+            is_vip_customer=True,
+        )
+
+        self.assertTrue(decision.alert_required)
+        self.assertEqual(decision.alert_channel, "Slack,Gmail")
+
     def test_medium_risk_is_logged_without_realtime_alert(self):
         decision = evaluate_alert_fatigue(
             risk_level="Medium",
@@ -59,6 +84,16 @@ class AlertFatigueTest(unittest.TestCase):
         self.assertFalse(decision.alert_required)
         self.assertEqual(decision.alert_channel, "None")
         self.assertIn("Google Sheets", decision.suppress_reason)
+
+    def test_low_risk_is_log_only(self):
+        decision = evaluate_alert_fatigue(
+            risk_level="Low",
+            churn_probability=0.22,
+        )
+
+        self.assertFalse(decision.alert_required)
+        self.assertEqual(decision.alert_channel, "None")
+        self.assertTrue(decision.log_required)
 
     def test_risk_level_thresholds_match_alert_policy(self):
         self.assertEqual(classify_risk_level(0.81), "Critical")

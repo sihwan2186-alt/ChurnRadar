@@ -66,11 +66,17 @@ COMMON_FEATURES = [
     "active_ratio",
     "inactive_ratio",
     "suspended_ratio",
+    "revenue_per_active_sub",
+    "inactive_x_revenue",
+    "revenue_balance",
     "usage_minutes",
     "usage_seconds",
     "usage_frequency",
     "sms_frequency",
     "distinct_contacts",
+    "skip_rate",
+    "completion_rate",
+    "diversity_score",
     "dropped_calls",
     "blocked_calls",
     "unanswered_calls",
@@ -137,6 +143,15 @@ def load_baza() -> tuple[pd.DataFrame, pd.Series]:
     X["active_ratio"] = safe_divide(X["active_subs"], X["total_subs"]).clip(0, 1)
     X["inactive_ratio"] = safe_divide(X["inactive_subs"], X["total_subs"]).clip(0, 1)
     X["suspended_ratio"] = safe_divide(X["suspended_subs"], X["total_subs"]).clip(0, 1)
+    X["revenue_per_active_sub"] = safe_divide(X["total_revenue"], X["active_subs"])
+    X["inactive_x_revenue"] = X["inactive_ratio"] * X["total_revenue"].fillna(0.0)
+    revenue_pair = X[["mobile_revenue", "fixed_revenue"]].fillna(0.0)
+    X["revenue_balance"] = (
+        revenue_pair.min(axis=1) / (revenue_pair.max(axis=1) + 1e-5)
+    ).replace([np.inf, -np.inf], np.nan).fillna(0.0).clip(0, 1)
+    X["skip_rate"] = 0.0
+    X["completion_rate"] = 0.0
+    X["diversity_score"] = 0.0
     X["zip_code"] = df["Billing_ZIP"]
     X["segment_code"] = pd.factorize(
         df["CRM_PID_Value_Segment"].astype(str)

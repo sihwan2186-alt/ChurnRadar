@@ -58,6 +58,9 @@ def aggregate_user_logs(path: Path, labeled_msnos: set[str], chunksize: int) -> 
         "complete_plays",
         "short_plays",
         "num_unq_sum",
+        "skip_rate_sum",
+        "completion_rate_sum",
+        "diversity_score_sum",
     ]
     min_cols = ["first_log_date"]
     max_cols = ["last_log_date"]
@@ -70,6 +73,11 @@ def aggregate_user_logs(path: Path, labeled_msnos: set[str], chunksize: int) -> 
         if chunk.empty:
             continue
         plays = chunk[["num_25", "num_50", "num_75", "num_985", "num_100"]].sum(axis=1)
+        safe_unq = chunk["num_unq"].replace(0, np.nan)
+        safe_plays = plays.replace(0, np.nan)
+        chunk["skip_rate_sum"] = (chunk["num_25"] / safe_unq).replace([np.inf, -np.inf], np.nan).fillna(0.0).clip(0.0, 1.0)
+        chunk["completion_rate_sum"] = (chunk["num_100"] / safe_unq).replace([np.inf, -np.inf], np.nan).fillna(0.0).clip(0.0, 1.0)
+        chunk["diversity_score_sum"] = (chunk["num_unq"] / safe_plays).replace([np.inf, -np.inf], np.nan).fillna(0.0).clip(0.0, 1.0)
         chunk["log_days"] = 1
         chunk["total_plays"] = plays
         chunk["complete_plays"] = chunk["num_100"]
@@ -179,6 +187,9 @@ def build_common_features(labels: pd.DataFrame, logs: pd.DataFrame, txns: pd.Dat
     recent_daily_secs = df.get("last7_secs", 0.0) / 7.0
     prior_daily_secs = prior_secs / prior_days
     active = df.get("log_days", 0.0).gt(0).astype(float)
+    skip_rate_mean = (df.get("skip_rate_sum", 0.0) / log_days).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+    completion_rate_mean = (df.get("completion_rate_sum", 0.0) / log_days).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+    diversity_score_mean = (df.get("diversity_score_sum", 0.0) / log_days).replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
     X = pd.DataFrame(index=df.index, columns=COMMON_FEATURES, dtype=float)
     X["monthly_revenue"] = monthly_revenue.fillna(0.0)
@@ -194,11 +205,17 @@ def build_common_features(labels: pd.DataFrame, logs: pd.DataFrame, txns: pd.Dat
     X["active_ratio"] = active
     X["inactive_ratio"] = 1.0 - active
     X["suspended_ratio"] = 0.0
+    X["revenue_per_active_sub"] = monthly_revenue.fillna(0.0)
+    X["inactive_x_revenue"] = X["inactive_ratio"] * df.get("actual_paid_sum", 0.0)
+    X["revenue_balance"] = 0.0
     X["usage_minutes"] = df.get("total_secs", 0.0) / 60.0
     X["usage_seconds"] = df.get("total_secs", 0.0)
     X["usage_frequency"] = df.get("total_plays", 0.0)
     X["sms_frequency"] = 0.0
     X["distinct_contacts"] = df.get("num_unq_sum", 0.0)
+    X["skip_rate"] = skip_rate_mean
+    X["completion_rate"] = completion_rate_mean
+    X["diversity_score"] = diversity_score_mean
     X["dropped_calls"] = df.get("short_plays", 0.0)
     X["blocked_calls"] = 0.0
     X["unanswered_calls"] = 0.0

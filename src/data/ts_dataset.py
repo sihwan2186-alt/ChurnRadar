@@ -1,72 +1,86 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
-import polars as pl
-import numpy as np
 from pathlib import Path
 
+import numpy as np
+import polars as pl
+import torch
+from torch.utils.data import Dataset
+
+
+DEFAULT_FEATURE_COLUMNS = [
+    "Activity_Energy",
+    "Momentum",
+    "Acceleration",
+    "Skip_Rate",
+    "Completion_Rate",
+    "Diversity_Score",
+]
+
+
 class ChurnTimeSeriesDataset(Dataset):
+    """Load customer time-series parquet as a padded PyTorch dataset.
+
+    The loader keeps the original 3-channel tensor path working, while also
+    accepting the added KKBox behavior channels when they are present.
     """
-    Parquet로 저장된 3D 텐서 메타데이터를 읽어 PyTorch Dataset으로 변환합니다.
-    (Samples, Time_Steps, Features)
-    - Data Leakage 방지를 위해 스케일링 로직을 외부로 분리했습니다.
-    - LSTM pack_padded_sequence를 위해 Post-padding(뒤에 0 채우기)을 적용합니다.
-    """
-    def __init__(self, parquet_path: Path, max_seq_len: int = 30, target_col: str = "is_churn"):
+
+    def __init__(
+        self,
+        parquet_path: Path,
+        max_seq_len: int = 30,
+        target_col: str = "is_churn",
+        feature_cols: list[str] | None = None,
+    ):
         super().__init__()
-        print(f"[Dataset] 로드 중: {parquet_path}")
+        print(f"[Dataset] Loading: {parquet_path}")
         df = pl.read_parquet(parquet_path)
-        
-        grouped = df.sort("Event_Time").group_by("Entity_ID", maintain_order=True).agg([
-            pl.col("Activity_Energy"),
-            pl.col("Momentum"),
-            pl.col("Acceleration")
-        ])
-        
+
+        requested_cols = feature_cols or DEFAULT_FEATURE_COLUMNS
+        self.feature_cols = [col for col in requested_cols if col in df.columns]
+        if not self.feature_cols:
+            raise ValueError(f"No time-series feature columns found in {parquet_path}")
+
+        grouped = df.sort("Event_Time").group_by("Entity_ID", maintain_order=True).agg(
+            [pl.col(col) for col in self.feature_cols]
+        )
+
         self.max_seq_len = max_seq_len
         self.sequences = []
         self.targets = []
         self.lengths = []
-        
+
         has_target = target_col is not None and target_col in df.columns
         if has_target:
             target_dict = dict(zip(df["Entity_ID"].to_list(), df[target_col].to_list()))
-            
-        print("[Dataset] 시퀀스 패딩(Post-Padding) 및 텐서 변환 중...")
+
+        print("[Dataset] Building padded tensors...")
         for row in grouped.iter_rows(named=True):
             entity_id = row["Entity_ID"]
-            energy = row["Activity_Energy"]
-            momentum = row["Momentum"]
-            accel = row["Acceleration"]
-            
-            # (Time_Steps, 3) 
-            seq = np.column_stack((energy, momentum, accel))
-            
+            seq = np.column_stack([row[col] for col in self.feature_cols])
+
             actual_len = min(len(seq), self.max_seq_len)
-            
-            # 길이 맞추기 (Post-Padding)
             if len(seq) >= self.max_seq_len:
-                seq = seq[-self.max_seq_len:]  # 최근 기록 우선
+                seq = seq[-self.max_seq_len:]
             else:
                 pad_len = self.max_seq_len - len(seq)
-                pad_matrix = np.zeros((pad_len, 3))
-                seq = np.vstack((seq, pad_matrix))  # 뒤에 0을 채움
-                
+                pad_matrix = np.zeros((pad_len, len(self.feature_cols)))
+                seq = np.vstack((seq, pad_matrix))
+
             self.sequences.append(seq)
             self.lengths.append(actual_len)
-            
+
             if has_target:
                 self.targets.append(target_dict.get(entity_id, 0))
             else:
                 self.targets.append(0)
-                
+
         self.X = np.array(self.sequences, dtype=np.float32)
         self.y = np.array(self.targets, dtype=np.float32)
         self.lens = np.array(self.lengths, dtype=np.int64)
-        
-        print(f"[Dataset] 준비 완료. 텐서 형태: {self.X.shape}")
+
+        print(f"[Dataset] Ready. tensor_shape={self.X.shape} features={self.feature_cols}")
 
     def __len__(self):
         return len(self.X)
-        
+
     def __getitem__(self, idx):
         return torch.tensor(self.X[idx]), torch.tensor(self.y[idx]), torch.tensor(self.lens[idx])

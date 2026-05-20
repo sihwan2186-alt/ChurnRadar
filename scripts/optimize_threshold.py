@@ -32,6 +32,10 @@ FEATURES = [
     "Not_Active_subscribers",
     "Mobile_Revenue_Ratio",
     "Inactive_Ratio",
+    "Suspended_Ratio",
+    "Revenue_per_Active_Sub",
+    "Inactive_x_Revenue",
+    "Revenue_Balance",
     "CRM_PID_Value_Segment",
     "EffectiveSegment",
 ]
@@ -51,6 +55,17 @@ def load_xgb_frame(csv_path: Path) -> tuple[pd.DataFrame, np.ndarray]:
     df["Mobile_Revenue_Ratio"] = df["Mobile_Revenue_Ratio"].fillna(0.0).clip(0.0, 1.0)
     df["Inactive_Ratio"] = df["Not_Active_subscribers"] / df["Total_SUBs"].replace(0, np.nan)
     df["Inactive_Ratio"] = df["Inactive_Ratio"].fillna(0.0).clip(0.0, 1.0)
+    if "Suspended_subscribers" not in df.columns:
+        df["Suspended_subscribers"] = 0.0
+    df["Suspended_subscribers"] = df["Suspended_subscribers"].fillna(0.0)
+    df["Suspended_Ratio"] = df["Suspended_subscribers"] / df["Total_SUBs"].replace(0, np.nan)
+    df["Suspended_Ratio"] = df["Suspended_Ratio"].fillna(0.0).clip(0.0, 1.0)
+    df["Revenue_per_Active_Sub"] = df["TotalRevenue"] / df["Active_subscribers"].replace(0, np.nan)
+    df["Revenue_per_Active_Sub"] = df["Revenue_per_Active_Sub"].replace([np.inf, -np.inf], np.nan).fillna(0.0)
+    df["Inactive_x_Revenue"] = df["Inactive_Ratio"] * df["TotalRevenue"].fillna(0.0)
+    revenue_pair = df[["AvgMobileRevenue", "AvgFIXRevenue"]].fillna(0.0)
+    df["Revenue_Balance"] = revenue_pair.min(axis=1) / (revenue_pair.max(axis=1) + 1e-5)
+    df["Revenue_Balance"] = df["Revenue_Balance"].replace([np.inf, -np.inf], np.nan).fillna(0.0).clip(0.0, 1.0)
 
     for col in ["CRM_PID_Value_Segment", "EffectiveSegment"]:
         df[col] = df[col].fillna("Unknown")

@@ -111,7 +111,7 @@ def choose_alert_channel(risk_level: str, is_priority_customer: bool) -> str:
     if normalized == "CRITICAL":
         return "Slack,Gmail" if is_priority_customer else "Slack"
     if normalized == "HIGH":
-        return "Slack"
+        return "Slack,Gmail" if is_priority_customer else "Slack"
     return "None"
 
 

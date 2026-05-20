@@ -27,7 +27,7 @@ from src.utils.helpers import model_path, processed_data_path, raw_data_path, re
 
 
 RANDOM_SEED = 42
-NOISE_STD = 0.05
+NOISE_STD = 0.04
 
 
 def select_device() -> torch.device:
@@ -85,14 +85,24 @@ def load_baza_csv_as_timeseries(
     base_momentum = (active / safe_total).clip(0.0, 1.0).to_numpy(dtype=np.float32)
     base_acceleration = (inactive / safe_total).clip(0.0, 1.0).to_numpy(dtype=np.float32)
 
+    from scripts.make_baza_ts import simulate_baza_sequence
+
     x = np.zeros((len(df), time_steps, 3), dtype=np.float32)
-    for idx, (energy, momentum, acceleration) in enumerate(
-        zip(base_energy, base_momentum, base_acceleration)
+    for idx, (energy, momentum, acceleration, label) in enumerate(
+        zip(base_energy, base_momentum, base_acceleration, y)
     ):
-        noise = rng.normal(1.0, NOISE_STD, size=(time_steps, 3)).astype(np.float32)
-        x[idx, :, 0] = np.clip(energy * noise[:, 0], 0.0, None)
-        x[idx, :, 1] = np.clip(momentum * noise[:, 1], 0.0, 1.0)
-        x[idx, :, 2] = np.clip(acceleration * noise[:, 2], 0.0, 1.0)
+        energy_seq, momentum_seq, accel_seq = simulate_baza_sequence(
+            base_energy=float(energy),
+            base_momentum=float(momentum),
+            base_accel=float(acceleration),
+            is_churn=bool(label),
+            rng=rng,
+            time_steps=time_steps,
+            noise_std=NOISE_STD,
+        )
+        x[idx, :, 0] = energy_seq.astype(np.float32)
+        x[idx, :, 1] = momentum_seq.astype(np.float32)
+        x[idx, :, 2] = accel_seq.astype(np.float32)
 
     lengths = np.full(len(df), time_steps, dtype=np.int64)
     return x, y, lengths

@@ -1,5 +1,7 @@
 import logging
 import os
+import time
+from uuid import uuid4
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 from typing import Dict, Any
@@ -8,11 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.alert_fatigue import evaluate_alert_fatigue
 from api.model_handler import predict_churn, predict_tcn, predict_xgb, predict_transformer
+from api.retention_roi import calculate_retention_roi
 from api.schemas import (
     AlertControlRequest,
     AlertControlResponse,
+    BatchPredictionRequest,
+    BatchPredictionResponse,
     ChurnPrediction,
     CustomerData,
+    RetentionROIRequest,
+    RetentionROIResponse,
 )
 
 # 로깅 설정
@@ -41,9 +48,7 @@ def read_root():
     logger.info("Health check endpoint '/' accessed.")
     return {"message": "ChurnRadar API 서버 정상 작동 중!"}
 
-@app.post("/predict", response_model=ChurnPrediction)
-def predict_churn_endpoint(data: CustomerData):
-    logger.info(f"Predict requested. Customer ID: {data.customer_id}")
+def build_churn_prediction_response(data: CustomerData) -> ChurnPrediction:
     data_dict = data.model_dump()
     result = predict_churn(data_dict)
     alert_decision = evaluate_alert_fatigue(
@@ -64,6 +69,25 @@ def predict_churn_endpoint(data: CustomerData):
         alert_channel=alert_decision.alert_channel,
         suppress_reason=alert_decision.suppress_reason,
         log_required=alert_decision.log_required,
+    )
+
+@app.post("/predict", response_model=ChurnPrediction)
+def predict_churn_endpoint(data: CustomerData):
+    logger.info(f"Predict requested. Customer ID: {data.customer_id}")
+    return build_churn_prediction_response(data)
+
+@app.post("/predict/batch", response_model=BatchPredictionResponse)
+def predict_batch_endpoint(data: BatchPredictionRequest):
+    started = time.perf_counter()
+    batch_id = data.batch_id or f"batch-{uuid4().hex[:12]}"
+    logger.info(f"Batch predict requested. Batch ID: {batch_id}, customers={len(data.customers)}")
+    predictions = [build_churn_prediction_response(customer) for customer in data.customers]
+    return BatchPredictionResponse(
+        batch_id=batch_id,
+        total_customers=len(predictions),
+        alert_required_count=sum(1 for prediction in predictions if prediction.alert_required),
+        elapsed_ms=round((time.perf_counter() - started) * 1000, 3),
+        predictions=predictions,
     )
 
 @app.post("/alert-control", response_model=AlertControlResponse)
@@ -88,6 +112,12 @@ def alert_control_endpoint(data: AlertControlRequest):
         suppress_reason=alert_decision.suppress_reason,
         log_required=alert_decision.log_required,
     )
+
+@app.post("/retention/roi", response_model=RetentionROIResponse)
+def retention_roi_endpoint(data: RetentionROIRequest):
+    logger.info(f"Retention ROI requested. Customer ID: {data.customer_id}")
+    roi = calculate_retention_roi(**data.model_dump())
+    return RetentionROIResponse(**roi.to_dict())
 
 @app.post("/predict/xgb", response_model=Dict[str, Any])
 def predict_xgb_endpoint(data: CustomerData):

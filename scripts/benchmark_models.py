@@ -93,9 +93,13 @@ CORE_NUMERIC_FEATURES = [
     "Not_Active_subscribers",
     "Mobile_Revenue_Ratio",
     "Inactive_Ratio",
+    "Suspended_Ratio",
+    "Revenue_per_Active_Sub",
+    "Inactive_x_Revenue",
+    "Revenue_Balance",
 ]
 CORE_CATEGORICAL_FEATURES = ["CRM_PID_Value_Segment", "EffectiveSegment"]
-FULL_EXTRA_NUMERIC_FEATURES = ["Suspended_subscribers", "Suspended_Ratio"]
+FULL_EXTRA_NUMERIC_FEATURES = ["Suspended_subscribers"]
 FULL_EXTRA_CATEGORICAL_FEATURES = ["Billing_ZIP", "KA_name"]
 GEO_NUMERIC_FEATURES = [
     "bg_zip_found",
@@ -171,6 +175,12 @@ def load_data(path: Path, feature_set: str) -> tuple[pd.DataFrame, pd.Series, li
     df["Mobile_Revenue_Ratio"] = _safe_divide(df["AvgMobileRevenue"], df["TotalRevenue"]).clip(0.0, 1.0)
     df["Inactive_Ratio"] = _safe_divide(df["Not_Active_subscribers"], df["Total_SUBs"]).clip(0.0, 1.0)
     df["Suspended_Ratio"] = _safe_divide(df["Suspended_subscribers"], df["Total_SUBs"]).clip(0.0, 1.0)
+    df["Revenue_per_Active_Sub"] = _safe_divide(df["TotalRevenue"], df["Active_subscribers"])
+    df["Inactive_x_Revenue"] = df["Inactive_Ratio"] * df["TotalRevenue"].fillna(0.0)
+    revenue_pair = df[["AvgMobileRevenue", "AvgFIXRevenue"]].fillna(0.0)
+    df["Revenue_Balance"] = (
+        revenue_pair.min(axis=1) / (revenue_pair.max(axis=1) + 1e-5)
+    ).replace([np.inf, -np.inf], np.nan).fillna(0.0).clip(0.0, 1.0)
 
     numeric_features = list(CORE_NUMERIC_FEATURES)
     categorical_features = list(CORE_CATEGORICAL_FEATURES)

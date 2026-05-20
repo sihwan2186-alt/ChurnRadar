@@ -1,0 +1,11 @@
+﻿model,group,importance
+decision_tree,revenue_size,0.4931042618877329
+decision_tree,subscriber_status,0.2469864866015133
+decision_tree,geo_billing_zone,0.15242027226419522
+decision_tree,customer_profile,0.10748897924650667
+decision_tree,public_demographics,5.1841732522500254e-14
+random_forest,revenue_size,0.3524841029777374
+random_forest,public_demographics,0.21725594836207554
+random_forest,geo_billing_zone,0.20211581087361277
+random_forest,subscriber_status,0.16686841052756204
+random_forest,customer_profile,0.06127572725901226
