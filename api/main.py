@@ -98,46 +98,60 @@ def _coerce_mapping_payload(payload: Any) -> dict[str, Any]:
     return {}
 
 
-def build_churn_prediction_response(data: Mapping[str, Any]) -> ChurnPrediction:
-    customer_id: str = _as_str(data.get("customer_id"))
-    active_subscribers: int = _as_int(data.get("active_subscribers"))
-    suspended_subscribers: int = _as_int(data.get("suspended_subscribers"))
-    history_arpu: Any = data.get("history_arpu", [])
-
-    # Demo/test probabilities. Replace these with loaded model outputs when needed.
-    xgb_probability: float = _as_float(data.get("xgb_probability"), 0.003)
-    tcn_probability: float = _as_float(data.get("tcn_probability"), 0.49)
-    ts_probability: float = _as_float(data.get("ts_probability"), 0.2)
-
-    churn_probability: float = max(xgb_probability, tcn_probability, ts_probability)
-    prediction_threshold: float = _as_float(data.get("prediction_threshold"), 0.47)
-    alert_required: bool = (
-        churn_probability >= prediction_threshold
-        or active_subscribers == 0
-        or suspended_subscribers >= 1
-        or _arpu_dropped(history_arpu)
-        or "HIGH-TEST" in customer_id
+def _build_model_payload(data: Mapping[str, Any]) -> dict[str, Any]:
+    total_subs = _as_float(data.get("total_subs", data.get("Total_SUBs")), 0.0)
+    active_subscribers = _as_float(data.get("active_subscribers", data.get("Active_subscribers")), 0.0)
+    not_active_subscribers = _as_float(
+        data.get("not_active_subscribers", data.get("Not_Active_subscribers")),
+        0.0,
     )
+    total_revenue = _as_float(data.get("total_revenue", data.get("TotalRevenue")), 0.0)
+    arpu = _as_float(data.get("arpu", data.get("ARPU")), 0.0)
+    if arpu == 0.0 and total_subs > 0:
+        arpu = total_revenue / total_subs
 
+    return {
+        "customer_id": _as_str(data.get("customer_id", data.get("PID"))),
+        "total_subs": total_subs,
+        "avg_mobile_revenue": _as_float(data.get("avg_mobile_revenue", data.get("AvgMobileRevenue")), 0.0),
+        "avg_fix_revenue": _as_float(data.get("avg_fix_revenue", data.get("AvgFIXRevenue")), 0.0),
+        "total_revenue": total_revenue,
+        "arpu": arpu,
+        "active_subscribers": active_subscribers,
+        "not_active_subscribers": not_active_subscribers,
+        "suspended_subscribers": _as_float(
+            data.get("suspended_subscribers", data.get("Suspended_subscribers")),
+            0.0,
+        ),
+        "crm_segment": _as_str(data.get("crm_segment", data.get("CRM_PID_Value_Segment")), "Unknown"),
+        "effective_segment": _as_str(data.get("effective_segment", data.get("EffectiveSegment")), "Unknown"),
+        "history_arpu": data.get("history_arpu", []),
+    }
+
+
+def build_churn_prediction_response(data: Mapping[str, Any]) -> ChurnPrediction:
+    model_payload = _build_model_payload(data)
+    result = predict_churn(model_payload)
+
+    customer_id: str = _as_str(data.get("customer_id", model_payload.get("customer_id")))
+    alert_required: bool = bool(result["churn_prediction"])
     if alert_required:
-        risk_level: str = "High"
         alert_channel: str = "Slack,Gmail"
         suppress_reason: str | None = ""
     else:
-        risk_level = "Low"
         alert_channel = "None"
         suppress_reason = "Low-risk customers are logged without Slack/Gmail alerts."
 
     response_payload: dict[str, Any] = {
         "customer_id": customer_id,
-        "xgb_probability": xgb_probability,
-        "tcn_probability": tcn_probability,
-        "ts_probability": ts_probability,
-        "churn_probability": churn_probability,
-        "prediction_threshold": prediction_threshold,
+        "xgb_probability": result["xgb_probability"],
+        "tcn_probability": result["tcn_probability"],
+        "ts_probability": result["ts_probability"],
+        "churn_probability": result["churn_probability"],
+        "prediction_threshold": result["prediction_threshold"],
         "churn_prediction": alert_required,
-        "risk_level": risk_level,
-        "expected_revenue_loss": _as_float(data.get("total_revenue")),
+        "risk_level": result["risk_level"],
+        "expected_revenue_loss": result["expected_revenue_loss"],
         "alert_required": alert_required,
         "alert_channel": alert_channel,
         "suppress_reason": suppress_reason,

@@ -1,5 +1,5 @@
 {
-  "name": "ChurnRadar Automation - 4 AI Agents FastAPI Slack Gmail Sheets",
+  "name": "ChurnRadar Automation - 4 AI Agents FastAPI Slack Gmail Sheets Telegram",
   "nodes": [
     {
       "parameters": {
@@ -27,7 +27,7 @@
         "url": "http://host.docker.internal:8000/predict",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"customer_id\": \"B2B-HIGH-TEST-001\",\n  \"total_subs\": 5,\n  \"avg_mobile_revenue\": 3.0,\n  \"avg_fix_revenue\": 2.0,\n  \"total_revenue\": 5.0,\n  \"arpu\": 1.0,\n  \"active_subscribers\": 0,\n  \"not_active_subscribers\": 4,\n  \"suspended_subscribers\": 1,\n  \"crm_segment\": \"VIP\",\n  \"effective_segment\": \"Business\",\n  \"history_arpu\": [80.0, 65.0, 42.0, 20.0, 1.0],\n  \"last_alert_time\": \"\",\n  \"previous_churn_probability\": 0.2,\n  \"previous_risk_level\": \"Low\",\n  \"response_status\": \"미대응\",\n  \"is_vip_customer\": true,\n  \"is_high_revenue_customer\": true\n}",
+        "jsonBody": "={\n  \"customer_id\": \"B2B-HIGH-TEST-001\",\n  \"total_subs\": 5,\n  \"total_revenue\": 5.0,\n  \"arpu\": 1.0,\n  \"active_subscribers\": 0,\n  \"not_active_subscribers\": 4,\n  \"suspended_subscribers\": 1,\n  \"history_arpu\": [80.0, 65.0, 42.0, 20.0, 1.0],\n  \"prediction_threshold\": 0.47\n}",
         "options": {
           "timeout": 30000
         }
@@ -80,15 +80,18 @@
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
-        "options": {
-          "temperature": 0.2
-        }
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
       },
       "id": "1e4a981f-ddb2-4a06-a7c2-74c5392f7afd",
       "name": "OpenAI Chat Model - Analyst",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
+      "typeVersion": 1.3,
       "position": [
         -384,
         800
@@ -119,15 +122,18 @@
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
-        "options": {
-          "temperature": 0.2
-        }
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
       },
       "id": "c89a8f80-4cc5-4d95-8741-a5e7e184ad28",
       "name": "OpenAI Chat Model - Strategist",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
+      "typeVersion": 1.3,
       "position": [
         -128,
         800
@@ -158,15 +164,18 @@
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
-        "options": {
-          "temperature": 0.2
-        }
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
       },
       "id": "ff336e12-0746-4e80-9d23-fa8e26138325",
       "name": "OpenAI Chat Model - Communicator",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
+      "typeVersion": 1.3,
       "position": [
         128,
         800
@@ -197,15 +206,18 @@
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
-        "options": {
-          "temperature": 0.2
-        }
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
       },
       "id": "23f215ef-32d6-400b-bff1-632e6186ebf2",
       "name": "OpenAI Chat Model - Auditor",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
+      "typeVersion": 1.3,
       "position": [
         400,
         800
@@ -222,8 +234,8 @@
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "mode": "id",
-          "value": "C0AJWELGU2Z"
+          "value": "C0B53JGJD25",
+          "mode": "id"
         },
         "text": "=🚨 [ChurnRadar] AI Agent 긴급 이탈 알림\n\n고객 ID: {{ $('FastAPI - /predict').item.json.customer_id }}\n위험 등급: {{ $('FastAPI - /predict').item.json.risk_level }}\n이탈 확률: {{ $('FastAPI - /predict').item.json.churn_probability }}\n예상 매출 손실: {{ $('FastAPI - /predict').item.json.expected_revenue_loss }}\n\n{{ $('AI Agent 3 - Communicator').item.json.output }}\n\n---\n감사관 검증:\n{{ $('AI Agent 4 - Auditor').item.json.output }}",
         "otherOptions": {}
@@ -239,8 +251,8 @@
       "webhookId": "ecc6a7d3-b8e2-4c97-9d9a-3a491b67fcf8",
       "credentials": {
         "slackApi": {
-          "id": "trv0OUeJFhbEJDuw",
-          "name": "Slack account"
+          "id": "EGn7lr7sqJvnVIrp",
+          "name": "Slack account 3"
         }
       }
     },
@@ -530,9 +542,9 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=FastAPI 예측 결과를 바탕으로 ChurnRadar ④ 감사관(Auditor) No Alert 로그를 작성하세요.\n\n[예측 결과 JSON]\n{{ JSON.stringify($json) }}\n\n[작성 요구]\n- alert_required=false인 이유를 요약\n- Slack/Gmail 발송 없이 Google Sheets에만 저장한다는 점을 명시\n- 다음 모니터링 주기에 재평가한다고 작성\n- 한국어 4줄 이내",
+        "text": "=FastAPI ?? ??? ???? ChurnRadar ? ???(Auditor) No Alert ??? ?????.\n\n[?? ?? JSON]\n{{ JSON.stringify($json) }}\n\n[?? ??]\n- alert_required=false? ??? ??\n- Slack/Gmail ?? ?? Google Sheets?? ????? ?? ??\n- ?? ???? ??? ?????? ??\n- ??? 4? ??",
         "options": {
-          "systemMessage": "당신은 ChurnRadar 파이프라인 감사관입니다. 알림이 필요 없는 고객의 로그 저장 사유를 기록합니다."
+          "systemMessage": "??? ChurnRadar ????? ??????. ??? ?? ?? ??? ?? ?? ??? ?????."
         }
       },
       "id": "8eb57c1c-d996-482c-a05d-94c73d7d74e8",
@@ -828,6 +840,28 @@
           "name": "Google Sheets account 3"
         }
       }
+    },
+    {
+      "parameters": {
+        "chatId": "8967050267",
+        "text": "=?? [ChurnRadar] AI Agent ?? ?? ??\n\n?? ID: {{ $('FastAPI - /predict').item.json.customer_id }}\n?? ??: {{ $('FastAPI - /predict').item.json.risk_level }}\n?? ??: {{ $('FastAPI - /predict').item.json.churn_probability }}\n?? ?? ??: {{ $('FastAPI - /predict').item.json.expected_revenue_loss }}\n\n{{ $('AI Agent 3 - Communicator').item.json.output }}\n\n---\n??? ??:\n{{ $('AI Agent 4 - Auditor').item.json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        704
+      ],
+      "id": "489b351f-22db-4f65-9ac1-95c8c6540f22",
+      "name": "Send a text message",
+      "webhookId": "27defb01-7a38-49d4-be54-6b80731feee5",
+      "credentials": {
+        "telegramApi": {
+          "id": "1HPadWFZQ55ltazo",
+          "name": "Telegram account 2"
+        }
+      }
     }
   ],
   "connections": {
@@ -952,6 +986,11 @@
           },
           {
             "node": "Google Sheets - Append Agent Log",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message",
             "type": "main",
             "index": 0
           }

@@ -24,7 +24,7 @@ from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import classification_report, f1_score, roc_auc_score
+from sklearn.metrics import average_precision_score, classification_report, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
@@ -34,7 +34,6 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from src.models import (
     build_balanced_random_forest,
-    build_catboost,
     build_easy_ensemble,
     build_lgbm,
     build_lr,
@@ -43,6 +42,7 @@ from src.models import (
     build_xgb,
 )
 from src.utils.helpers import model_path, raw_data_path, resolve_input_path
+from src.utils.threshold_optimizer import evaluate_threshold, find_best_threshold
 
 DEFAULT_CSV = raw_data_path("baza_telecom_v2.csv")
 MODEL_OUT = model_path("model.joblib")
@@ -65,6 +65,7 @@ NUMERIC_FEATURES = [
 CAT_FEATURES = ["CRM_PID_Value_Segment", "EffectiveSegment"]
 FEATURE_COLS = NUMERIC_FEATURES + CAT_FEATURES
 TARGET = "CHURN"
+THRESHOLDS = np.round(np.arange(0.10, 0.705, 0.005), 4)
 
 
 def load_data(path: Path) -> tuple[pd.DataFrame, pd.Series]:
@@ -146,25 +147,66 @@ def make_model_pipelines() -> dict[str, Pipeline | ImbPipeline]:
         "EasyEnsemble": make_pipeline(build_easy_ensemble(n_estimators=10)),
         "XGBoost": make_pipeline(build_xgb(n_estimators=300, scale_pos_weight=14.4)),
         "LightGBM": make_pipeline(build_lgbm(n_estimators=300)),
-        "CatBoost": make_pipeline(build_catboost(cat_features=[], iterations=500)),
     }
 
 
-def evaluate(name: str, model, X_test, y_test) -> float:
+def evaluate(name: str, model, X_val, y_val, X_test, y_test) -> float:
     y_pred = model.predict(X_test)
     auc = float("nan")
+    ap = float("nan")
 
     if hasattr(model, "predict_proba"):
+        y_val_prob = model.predict_proba(X_val)[:, 1]
         y_prob = model.predict_proba(X_test)[:, 1]
         auc = roc_auc_score(y_test, y_prob)
+        ap = average_precision_score(y_test, y_prob)
+        validation_best = find_best_threshold(y_val, y_val_prob, THRESHOLDS)
+        tuned = evaluate_threshold(y_test, y_prob, validation_best.threshold)
+        default = evaluate_threshold(y_test, y_prob, 0.5)
+        y_pred = (y_prob >= validation_best.threshold).astype(int)
+        f1 = tuned.f1
+    else:
+        tuned = None
+        default = None
+        positive = int(((np.asarray(y_test) == 1) & (np.asarray(y_pred) == 1)).sum())
+        predicted_positive = int((np.asarray(y_pred) == 1).sum())
+        actual_positive = int((np.asarray(y_test) == 1).sum())
+        precision = positive / predicted_positive if predicted_positive else 0.0
+        recall = positive / actual_positive if actual_positive else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
 
-    f1 = f1_score(y_test, y_pred, zero_division=0)
     print(f"\n{'=' * 50}")
     print(f"  {name}")
     print(f"{'=' * 50}")
     print(classification_report(y_test, y_pred, target_names=["No Churn", "Churn"], zero_division=0))
-    print(f"  F1 (Churn): {f1:.4f}  |  AUC: {auc:.4f}")
+    if tuned is not None and default is not None:
+        print(
+            "  Validation-selected threshold: "
+            f"{validation_best.threshold:.4f} "
+            f"(val F1={validation_best.f1:.4f}, val Recall={validation_best.recall:.4f})"
+        )
+        print(
+            "  Test tuned: "
+            f"Precision={tuned.precision:.4f} | Recall={tuned.recall:.4f} | F1={tuned.f1:.4f}"
+        )
+        print(
+            "  Test default 0.5: "
+            f"Precision={default.precision:.4f} | Recall={default.recall:.4f} | F1={default.f1:.4f}"
+        )
+        print(f"  PR-AUC: {ap:.4f}  |  ROC-AUC: {auc:.4f}")
+    else:
+        print(f"  F1 (Churn): {f1:.4f}")
     return f1
+
+
+def make_fresh_model(name: str):
+    if name == "Ensemble":
+        voting_members = {
+            model_name: make_model_pipelines()[model_name]
+            for model_name in ["LR", "RF_SMOTE", "BalancedRF", "EasyEnsemble", "XGBoost", "LightGBM"]
+        }
+        return build_voting_ensemble(voting_members)
+    return make_model_pipelines()[name]
 
 
 def main() -> None:
@@ -183,10 +225,13 @@ def main() -> None:
     print(f"Rows: {X.shape[0]} | Churn rate: {y.mean():.2%}")
     print(f"Features: {list(X.columns)}")
 
-    X_train, X_test, y_train, y_test = train_test_split(
+    X_train_val, X_test, y_train_val, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
-    print(f"\nTrain: {X_train.shape[0]} | Test: {X_test.shape[0]}")
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_val, y_train_val, test_size=0.25, random_state=42, stratify=y_train_val
+    )
+    print(f"\nTrain: {X_train.shape[0]} | Validation: {X_val.shape[0]} | Test: {X_test.shape[0]}")
     print(f"Train churn count: {y_train.sum()}")
 
     models = make_model_pipelines()
@@ -194,7 +239,7 @@ def main() -> None:
     for name, pipeline in models.items():
         print(f"\n[Training] {name}...", flush=True)
         pipeline.fit(X_train, y_train)
-        scores[name] = evaluate(name, pipeline, X_test, y_test)
+        scores[name] = evaluate(name, pipeline, X_val, y_val, X_test, y_test)
 
     print("\n[Training] Voting Ensemble (LR+RF_SMOTE+BalancedRF+EasyEnsemble+XGBoost+LightGBM)...", flush=True)
     voting_members = {
@@ -203,7 +248,7 @@ def main() -> None:
     }
     ensemble = build_voting_ensemble(voting_members)
     ensemble.fit(X_train, y_train)
-    scores["Ensemble"] = evaluate("Voting Ensemble", ensemble, X_test, y_test)
+    scores["Ensemble"] = evaluate("Voting Ensemble", ensemble, X_val, y_val, X_test, y_test)
 
     best_single = max((k for k in scores if k != "Ensemble"), key=lambda k: scores[k])
     print(f"\n[10-Fold CV] {best_single}...")
@@ -225,9 +270,10 @@ def main() -> None:
         print(f"  {name:<15} {f1:.4f}")
 
     best_name = max(scores, key=lambda k: scores[k])
-    best_model = ensemble if best_name == "Ensemble" else models[best_name]
     print(f"\nBest model: {best_name} (F1={scores[best_name]:.4f})")
 
+    best_model = make_fresh_model(best_name)
+    best_model.fit(X_train_val, y_train_val)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(best_model, args.out)
     print(f"Saved: {args.out}")
